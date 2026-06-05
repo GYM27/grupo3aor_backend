@@ -6,34 +6,43 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * Criei esta interface para gerir o acesso aos dados e a persistência da entidade User.
- * Optei por herdar de JpaRepository para delegar ao Spring Data JPA a geração automática
- * de todas as operações fundamentais de CRUD no banco de dados H2.
+ * Interface created to manage data access and persistence of the User entity.
+ * Extending JpaRepository delegates to Spring Data JPA the automatic generation
+ * of all fundamental CRUD operations in the H2 database.
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     
     /**
-     * Configurei esta consulta baseada em convenção de nomenclatura para localizar
-     * um utilizador através do seu endereço de e-mail.
-     * * Escolhi envolver o retorno num objeto 'Optional' porque compreendi que o e-mail
-     * introduzido pode não existir na tabela, permitindo-me tratar a ausência do registo
-     * de forma segura na camada de serviço e evitar exceções nulas involuntárias.
+     * Naming convention-based query configured to find
+     * a user by their email address.
+     * * The return type is wrapped in an 'Optional' because the provided email
+     * may not exist in the table, allowing safe handling of absent records
+     * in the service layer and preventing involuntary null exceptions.
      *
-     * @param email Endereço de e-mail utilizado na pesquisa.
-     * @return Um Optional contendo o utilizador, caso ele seja localizado.
+     * @param email Email address used in the search.
+     * @return An Optional containing the user, if found.
      */
     Optional<User> findByEmail(String email);
+
+    /**
+     * Searches for a user by their activation token.
+     * Used during the email account confirmation process.
+     *
+     * @param token The token generated upon registration.
+     * @return An Optional containing the user, if a user with that token exists.
+     */
+    Optional<User> findByActivationToken(String token);
     
     /**
-     * Decidi adicionar este método de validação rápida para verificar a existência
-     * prévia de um e-mail durante o fluxo de registo.
-     * * Optei por esta abordagem porque ela executa uma verificação otimizada no banco de dados,
-     * retornando um valor booleano simples. Isto evita que eu tenha de carregar a entidade
-     * completa para a memória do servidor apenas para saber se o e-mail já está ocupado.
+     * Added this quick validation method to check the prior existence
+     * of an email during the registration flow.
+     * * This approach performs an optimized database check,
+     * returning a simple boolean value. This avoids loading the entire
+     * entity into server memory just to see if the email is taken.
      *
-     * @param email Endereço de e-mail a ser verificado.
-     * @return Verdadeiro se o e-mail já existir na tabela, falso caso contrário.
+     * @param email Email address to be checked.
+     * @return True if the email already exists in the table, false otherwise.
      */
     boolean existsByEmail(String email);
 }

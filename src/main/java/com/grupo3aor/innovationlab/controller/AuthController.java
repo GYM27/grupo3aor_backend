@@ -21,11 +21,11 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Desenvolvi este controlador REST para expor os endpoints de autenticação à aplicação cliente.
- * * O objetivo desta classe é atuar como a porta de entrada para os processos de login e registo,
- * recebendo os dados em formato JSON através dos DTOs e encaminhando-os para a camada de serviço.
- * Configurei o CrossOrigin de forma explícita, ativando a partilha de credenciais para viabilizar
- * o tráfego dos cookies de sessão (JSESSIONID) com o nosso frontend local.
+ * REST controller to expose authentication endpoints to the client application.
+ * * The purpose of this class is to act as the entry point for login and registration processes,
+ * receiving data in JSON format via DTOs and forwarding them to the service layer.
+ * CrossOrigin is explicitly configured to enable credential sharing, allowing
+ * session cookies (JSESSIONID) traffic with our local frontend.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -38,9 +38,9 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
 
     /**
-     * Configurei a injeção das dependências necessárias para as operações de segurança e negócio.
-     * Optei por incluir o AuthenticationManager do Spring Security para me permitir delegar
-     * o ciclo de autenticação e o registo da sessão HTTP de forma nativa e robusta.
+     * Dependency injection for security and business operations.
+     * The Spring Security AuthenticationManager is included to delegate
+     * the authentication cycle and HTTP session registration natively.
      */
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, 
                           AuthService authService, AuthenticationManager authenticationManager) {
@@ -51,76 +51,94 @@ public class AuthController {
     }
 
     /**
-     * Implementei este endpoint para processar as tentativas de autenticação do utilizador.
-     * * Optei por utilizar o ecossistema nativo do Spring Security, submetendo um token de credenciais
-     * ao AuthenticationManager. Desta forma, garanto que, se as credenciais estiverem corretas, 
-     * a sessão do utilizador é guardada no contexto do servidor e o cookie JSESSIONID é gerado 
-     * e enviado automaticamente para o browser, cumprindo os requisitos de controlo de acessos.
+     * Endpoint to process user authentication attempts.
+     * * Utilizes the native Spring Security ecosystem by submitting a credentials token
+     * to the AuthenticationManager. If credentials are correct, the user's session
+     * is saved in the server context and the JSESSIONID cookie is generated and sent
+     * automatically to the browser.
      *
-     * @param request O objeto contendo o e-mail e a palavra-passe submetidos.
-     * @param httpRequest O objeto de pedido do servlet que utilizei para forçar a criação da sessão.
-     * @return Uma resposta HTTP contendo os dados do perfil em caso de sucesso, ou o erro apropriado.
+     * @param request Object containing the submitted email and password.
+     * @param httpRequest Servlet request object used to force session creation.
+     * @return An HTTP response containing profile data on success, or the appropriate error.
      */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
 
-        // Busquei o utilizador pelo e-mail para validar previamente o estado de ativação da conta
+        // Fetch the user by email to pre-validate account activation status
         Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
 
         if (userOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Credenciais inválidas"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
         }
 
         User user = userOptional.get();
 
-        // Validou-se se a conta já foi ativada antes de prosseguir com o gasto computacional de autenticação
+        // Validate if the account has already been activated before proceeding with authentication
         if (!user.isAtivado()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Conta não ativada. Verifique o seu e-mail."));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Account not activated. Please check your email."));
         }
 
         try {
-            // Criei o token de autenticação em texto limpo com as credenciais submetidas
+            // Create clear text authentication token with submitted credentials
             UsernamePasswordAuthenticationToken authenticationToken = 
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
 
-            // Delegou-se ao AuthenticationManager a tarefa de validar a password contra o AuthUserLoader
+            // Delegate to AuthenticationManager the task of validating password against AuthUserLoader
             Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
-            // Depositei a autenticação validada no contexto de segurança global do Spring Boot
+            // Deposit validated authentication in Spring Boot's global security context
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // Forcei explicitamente a criação ou recuperação da sessão HTTP no servidor (Requisito 8.4)
+            // Explicitly force HTTP session creation or retrieval on the server
             HttpSession session = httpRequest.getSession(true);
             session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
-            // Devolvi o perfil e o nome para a construção da interface no cliente
+            // Return profile and name for UI construction
             return ResponseEntity.ok(Map.of(
-                    "message", "Login efetuado com sucesso",
+                    "message", "Login successful",
                     "perfil", user.getPerfil().name(),
-                    "nomeCompleto", user.getNome() + " " + user.getApelido()
+                    "nomeCompleto", user.getFirstName() + " " + user.getLastName()
             ));
 
         } catch (Exception e) {
-            // Se o gestor de autenticação falhar (password errada), capturo a exceção e respondo com 401
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Credenciais inválidas"));
+            // If authentication manager fails (wrong password), catch exception and respond with 401
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
         }
     }
 
     /**
-     * Desenvolvi este endpoint para delegar o processo de criação de novas contas.
-     * * A lógica de negócio (validação de e-mails duplicados, confirmação de password e encriptação)
-     * foi isolada no AuthService para manter este controlador limpo e focado apenas no tráfego HTTP.
+     * Endpoint to delegate new account creation process.
+     * * Business logic (duplicate email validation, password confirmation and encryption)
+     * was isolated in AuthService to keep this controller clean and focused on HTTP traffic.
      *
-     * @param request O objeto contendo todos os dados submetidos no formulário de registo.
-     * @return Uma resposta HTTP 200 em caso de sucesso, ou um erro 400 em caso de falha de validação.
+     * @param request Object containing all data submitted in the registration form.
+     * @return HTTP 200 response on success, or 400 error on validation failure.
      */
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
             authService.registarNovoUtilizador(request);
-            return ResponseEntity.ok(Map.of("message", "Registo efetuado com sucesso."));
+            return ResponseEntity.ok(Map.of("message", "Registration successful. Please check your email to activate the account."));
         } catch (RuntimeException e) {
-            // Capturo as exceções de negócio lançadas pelo AuthService e devolvo-as ao frontend de forma amigável
+            // Catch business exceptions thrown by AuthService and return them nicely
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Endpoint for account activation via email link.
+     * @param token The activation token.
+     * @return Success or error message.
+     */
+    @GetMapping("/ativar")
+    public ResponseEntity<?> ativarConta(@RequestParam("token") String token) {
+        try {
+            authService.ativarConta(token);
+            return ResponseEntity.ok(Map.of("message", "Account activated successfully. You can now login."));
+        } catch (com.grupo3aor.innovationlab.service.AuthService.AccountAlreadyActivatedException e) {
+            // Account was already activated (token already used): return 200 with friendly message
+            return ResponseEntity.ok(Map.of("message", e.getMessage(), "alreadyActivated", true));
+        } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

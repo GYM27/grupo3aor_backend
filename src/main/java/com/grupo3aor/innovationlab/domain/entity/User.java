@@ -17,114 +17,108 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * Criei esta Entidade JPA para representar a tabela "users" na base de dados.
+ * JPA Entity representing the "users" table in the database.
  *
- * NOTAS SOBRE A IMPLEMENTAÇÃO:
- * - As anotações @Entity, @Table, @Id e @Column são as anotações padrão da especificação JPA.
- * - A grande novidade que decidi introduzir aqui são as anotações do Lombok (@Data, @Builder).
- *   Isto é brutal porque elimina a necessidade de andarmos a escrever getters, setters e construtores à mão, o código fica muito mais limpo!
+ * IMPLEMENTATION NOTES:
+ * - @Entity, @Table, @Id and @Column are standard JPA annotations.
+ * - Utilizing Lombok annotations (@Data, @Builder) to reduce boilerplate code (getters, setters, constructors).
  */
 @Entity
-@Table(name = "users") // Defini o nome da tabela como "users" e não "user",
-                        // porque "user" costuma ser uma palavra reservada no SQL e pode dar problemas.
-@Getter             // Substituí o @Data pelas anotações granulares @Getter, @Setter e @ToString.
-@Setter             // Optei por esta abordagem preventiva para garantir que, quando adicionarmos relações JPA
-@ToString           // (como @OneToMany) no futuro, não teremos problemas de StackOverflow ou falhas de performance.
-@NoArgsConstructor  // O Lombok cria o construtor vazio por nós — que o JPA obriga a existir!
-@AllArgsConstructor // Criei o construtor com todos os campos porque o @Builder precisa dele para funcionar.
-@Builder            // Coloquei o Lombok Builder: isto permite-me criar um User de forma muito fixe, tipo: User.builder().nome("Ana").build()
+@Table(name = "users") // Pluralized to avoid SQL reserved keyword conflicts
+@Getter             // Granular Lombok annotations instead of @Data
+@Setter             // to prevent StackOverflow and performance issues
+@ToString           // when introducing relationships (e.g. @OneToMany) later on.
+@NoArgsConstructor  // Required by JPA
+@AllArgsConstructor // Required by @Builder
+@Builder            // Enables Builder pattern: User.builder().firstName("Ana").build()
 public class User {
 
     // =========================================================
-    // A MINHA CHAVE PRIMÁRIA
-    // Usei IDENTITY para o auto-increment. É exatamente o equivalente a quando usávamos BIGSERIAL no PostgreSQL.
+    // PRIMARY KEY
+    // Using IDENTITY for auto-increment.
     // =========================================================
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     // =========================================================
-    // OS NOSSOS DADOS PESSOAIS
-    // O @NotBlank garante que os campos obrigatórios (nome, apelido, email) não vêm nulos nem vazios.
-    // O @Size adiciona uma restrição de segurança ao tamanho máximo na base de dados.
+    // PERSONAL DATA
+    // @NotBlank ensures mandatory fields are not null or empty.
+    // @Size adds a security constraint on the maximum length in the DB.
     // =========================================================
-    @NotBlank(message = "O nome não pode estar vazio")
-    @Size(max = 75, message = "O nome não pode ter mais de 75 caracteres")
+    @NotBlank(message = "First name cannot be empty")
+    @Size(max = 75, message = "First name cannot exceed 75 characters")
     @Column(nullable = false, length = 75)
-    private String nome;
+    private String firstName;
 
-    @NotBlank(message = "O apelido não pode estar vazio")
-    @Size(max = 75, message = "O apelido não pode ter mais de 75 caracteres")
+    @NotBlank(message = "Last name cannot be empty")
+    @Size(max = 75, message = "Last name cannot exceed 75 characters")
     @Column(nullable = false, length = 75)
-    private String apelido;
+    private String lastName;
 
-    @Email(message = "O email nao tem formato valido")
-    @NotBlank(message = "O email nao pode estar vazio")
-    @Column(nullable = false, unique = true) // Pus o unique a true porque não quero deixar que existam dois utilizadores registados com o mesmo e-mail.
+    @Email(message = "Invalid email format")
+    @NotBlank(message = "Email cannot be empty")
+    @Column(nullable = false, unique = true) // Enforce unique emails in the database
     private String email;
 
-    // ATENÇÃO MUITO IMPORTANTE: Eu decidi guardar apenas o HASH da password, NUNCA a password em texto simples na base de dados!
-    // Mais à frente, quando configurar o BCrypt (no Passo 9), ele vai pegar no "password123" e converter em algo como "$2a$10$xyz..."
+    // CRITICAL: Storing only the BCrypt hash of the password, never plain text.
     @NotBlank
     @Column(nullable = false)
     private String passwordHash;
 
     // =========================================================
-    // O NOSSO PERFIL (vou usar o enum que criei lá no Passo 3)
-    // Optei por EnumType.STRING para que na BD grave coisas como "ADMIN" ou "GESTOR".
-    // Fiz isto porque fica muito mais fácil de ler na base de dados do que se guardasse índices numéricos soltos (0, 1, 2).
+    // PROFILE
+    // EnumType.STRING saves "ADMIN" instead of numeric indices for readability.
     // =========================================================
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PerfilEnum perfil;
 
     // =========================================================
-    // O MEU SOFT DELETE
-    // Eu pensei: em vez de apagarmos definitivamente um registo da base de dados, vamos antes desativar o utilizador.
-    // Assim nunca perdemos o histórico de dados no nosso sistema!
+    // SOFT DELETE
+    // Disabling user instead of deleting to keep historical data.
     // =========================================================
     @Column(nullable = false)
-    @Builder.Default // Tive de meter isto para que o Lombok @Builder respeite o meu valor por defeito.
-    private boolean ativo = true; // Por defeito, sempre que crio um utilizador novo, ele começa logo como ativo.
+    @Builder.Default // Respect the default value when using @Builder
+    private boolean ativo = true; // By default, new users are active
 
     // =========================================================
-    // A MINHA LÓGICA DE ATIVAÇÃO DE CONTA POR EMAIL
-    // Eu decidi que o utilizador só consegue fazer login depois de ir ao seu e-mail e ativar a conta.
+    // EMAIL ACTIVATION LOGIC
+    // Users must activate their accounts via email link before logging in.
     // =========================================================
     @Builder.Default
-    private boolean ativado = false; // Ao contrário do "ativo", os novos utilizadores começam NÃO ativados (têm de confirmar o email).
+    private boolean ativado = false; // New users start as not activated
 
-    private String activationToken; // Aqui guardo o token que eu vou gerar no momento do registo e enviar no link por e-mail.
+    private String activationToken; // The token sent via email
 
     // =========================================================
-    // A MINHA AUDITORIA AUTOMÁTICA
-    // Usei estas anotações espetaculares para que o Hibernate preencha estes campos sozinho, não preciso de escrever código extra para isto!
+    // AUTOMATIC AUDITING
+    // Hibernate handles these timestamps automatically.
     // =========================================================
-    @CreationTimestamp // O Hibernate preenche isto automaticamente no exato momento em que o registo é CRIADO.
-    @Column(nullable = false, updatable = false) // Coloquei updatable=false para ter a certeza que esta data nunca mais muda depois da criação!
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false) // Cannot be updated after creation
     private LocalDateTime criadoEm;
 
-    @UpdateTimestamp // O Hibernate atualiza isto automaticamente sempre que o registo for ALTERADO.
+    @UpdateTimestamp // Automatically updated on modifications
     private LocalDateTime atualizadoEm;
 
     // =========================================================
-    // IDENTIDADE DA ENTIDADE (EQUALS & HASHCODE)
-    // Implementei o equals() e o hashCode() focados exclusivamente no 'id' para garantir 
-    // estabilidade nas coleções (ex: Set) e evitar referências circulares perigosas em relacionamentos.
+    // ENTITY IDENTITY (EQUALS & HASHCODE)
+    // Equals based purely on ID to guarantee collection stability and prevent 
+    // circular references in JPA relationships.
     // =========================================================
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof User)) return false;
         User other = (User) o;
-        // Dois utilizadores são iguais estritamente se partilharem o mesmo ID, e esse ID já existir.
+        // Two users are equal if they share the same non-null ID.
         return id != null && id.equals(other.getId());
     }
 
     @Override
     public int hashCode() {
-        // Utilizo um valor fixo baseado na classe para garantir que o hashCode não se altera 
-        // entre o momento em que a entidade é instanciada e o momento em que ganha um ID na base de dados.
+        // Fixed value to ensure hashCode stability between instantiation and DB persistence.
         return getClass().hashCode();
     }
 }

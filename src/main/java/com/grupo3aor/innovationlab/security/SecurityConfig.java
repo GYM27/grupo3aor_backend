@@ -15,62 +15,62 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 /**
- * Criei esta classe para tratar de toda a Configuração de Segurança da nossa aplicação.
+ * Configuration class for the application's security settings.
  *
- * Criei esta classe para centralizar e gerir toda a segurança web do projeto.
- * É aqui que eu tenho o poder de decidir:
- *   - Quais os URLs que vão ficar públicos (sem precisarem de login)
- *   - Quais os URLs que vou proteger (que vão requerer login obrigatório)
- *   - Que o algoritmo que vamos usar para encriptar as nossas passwords neste caso o BCrypt.
+ * Centralizes and manages all web security for the project.
+ * Here we configure:
+ *   - Public URLs (no login required)
+ *   - Protected URLs (mandatory login)
+ *   - The password encryption algorithm (BCrypt).
  *
- * NOTA: Por agora, como estamos no início, decidi deixar a segurança em modo de DESENVOLVIMENTO.
- *       Mantenho o H2 Console acessível à vontade para podermos fazer os nossos testes.
+ * NOTE: Currently in DEVELOPMENT mode.
+ *       The H2 Console is left accessible for testing purposes.
  *       
  */
-@Configuration      // Com isto digo ao Spring: "Atenção, esta classe contém configurações!"
-@EnableWebSecurity  // E com isto ligo imediatamente todo o sistema de segurança principal do Spring.
+@Configuration      // Tells Spring: "Attention, this class contains configurations!"
+@EnableWebSecurity  // Immediately enables Spring's main security system.
 public class SecurityConfig {
 
     /**
-     * Aqui é onde eu defino de facto as regras de acesso para cada URL da aplicação.
+     * Defines the access rules for each URL of the application.
      *
-     * Este SecurityFilterChain é basicamente uma "cadeia de filtros" — garanto que cada pedido HTTP
-     * que entra na app vai ter de passar por esta cadeia e ser avaliado antes sequer de chegar aos nossos Controllers.
+     * This SecurityFilterChain guarantees that every incoming HTTP request 
+     * goes through this chain and is evaluated before reaching our Controllers.
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Ativar CORS globalmente
+            // Enable CORS globally
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-            // Trato aqui da proteção CSRF (Cross-Site Request Forgery)
-            // Desativei para a consola do H2 e para as rotas de Autenticação (/api/auth/**), 
-            // caso contrário o Spring ia bloquear os pedidos POST de login que vêm do React.
+            // CSRF (Cross-Site Request Forgery) protection
+            // Disabled for the H2 console and Authentication routes (/api/auth/**), 
+            // otherwise Spring would block POST login requests coming from React.
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers("/h2-console/**", "/api/auth/**")
             )
 
-            // Configurei o X-Frame-Options aqui porque eu quero permitir que o H2 Console consiga usar os iframes internamente, senão não abre.
+            // Configure X-Frame-Options to allow H2 Console to use iframes internally.
             .headers(headers -> headers
                 .frameOptions(frame -> frame.sameOrigin())
             )
 
-            // Aqui defino finalmente as minhas regras de acesso baseadas nos URLs
+            // Define access rules based on URLs
             .authorizeHttpRequests(auth -> auth
-                // Estes são os URLs que eu defini como PÚBLICOS (qualquer um acede sem fazer login)
-                .requestMatchers("/h2-console/**").permitAll()     // O meu adorado acesso livre à consola H2
-                .requestMatchers("/api/auth/**").permitAll()        // Livre acesso aos endpoints de Login e Registo
-                .requestMatchers("/actuator/health").permitAll()    // Livre acesso ao nosso endpoint de Health check para monitorização
+                // PUBLIC URLs (anyone can access without login)
+                .requestMatchers("/h2-console/**").permitAll()     // Free access to the H2 console
+                .requestMatchers("/api/auth/**").permitAll()        // Free access to Login and Registration endpoints
+                .requestMatchers("/actuator/health").permitAll()    // Free access to our Health check endpoint for monitoring
 
-                // Para TODOS os restantes URLs que eu não referi em cima, decidi que vão precisar obrigatoriamente de autenticação!
+                // ALL other URLs not mentioned above will strictly require authentication!
                 .anyRequest().authenticated()
             )
 
-            // Por enquanto ativei o formulário de login por defeito que vem com o Spring (aquela página muito básica e feia).
-            // Eu prometo que mais tarde vamos remover isto quando o nosso frontend em React se começar a encarregar do ecrã de login!
+            // Temporarily enable Spring's default login form.
+            // Will be removed later when our React frontend handles the login screen!
             .formLogin(form -> form.permitAll())
 
-            // E finalmente, aqui eu configuro como vai funcionar o processo de logout
+            // Finally, configure the logout process
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
                 .logoutSuccessHandler((req, res, auth) -> res.setStatus(200))
@@ -81,14 +81,11 @@ public class SecurityConfig {
     }
 
     /**
-     * Aqui defino formalmente que vamos usar o BCrypt como o nosso algoritmo de encriptação das passwords.
+     * Formally defines that we will use BCrypt as our password encryption algorithm.
      *
-     * Escolhi o BCrypt porque é atualmente o padrão mais robusto da indústria para guardar passwords de forma segura na base de dados.
-     * O que ele vai fazer internamente é algo deste género:
-     *   Eu recebo "password123" -> O BCrypt encripta -> Guarda na BD "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
-     *
-     * Como é um hash unidirecional, é literalmente impossível reverter o hash e descobrir a password original em texto limpo.
-     * O que eu faço na hora de autenticar é simplesmente mandar o BCrypt comparar o hash que eu tenho guardado com o hash da tentativa de login.
+     * Chosen because it's currently the industry's most robust standard for securely storing passwords in the database.
+     * Being a one-way hash, it is literally impossible to reverse the hash and discover the original plain text password.
+     * During authentication, BCrypt simply compares the stored hash with the hash of the login attempt.
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -96,31 +93,31 @@ public class SecurityConfig {
     }
 
     /**
-     * Configuração do CORS para permitir que o Frontend (React/Vite) comunique com o Backend.
-     * Como o Frontend corre na porta 5173 e o Backend na 8080, isto é essencial para não ser bloqueado.
+     * CORS Configuration to allow the Frontend (React/Vite) to communicate with the Backend.
+     * Since the Frontend runs on port 5173 and the Backend on 8080, this is essential to prevent blocking.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permite pedidos vindos da origem do frontend (Vite default port)
+        // Allows requests from the frontend origin (Vite default port)
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
-        // Permite os métodos HTTP essenciais
+        // Allows essential HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // Permite o envio de headers na request
+        // Allows sending headers in the request
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
-        // Permite o envio de credenciais (cookies, headers de autenticação)
+        // Allows sending credentials (cookies, authentication headers)
         configuration.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Aplica esta configuração de CORS a todos os endpoints do backend
+        // Applies this CORS configuration to all backend endpoints
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
     /**
-     * Exponho o AuthenticationManager nativo do Spring Security como um Bean.
-     * Isto é obrigatório porque injetámos este gestor no nosso AuthController para
-     * processar programaticamente os logins e definir a sessão manual.
+     * Exposes the native Spring Security AuthenticationManager as a Bean.
+     * This is mandatory because we inject this manager into our AuthController to
+     * programmatically process logins and manually set the session.
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {

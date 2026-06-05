@@ -7,68 +7,112 @@ import com.grupo3aor.innovationlab.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+import java.util.UUID;
+
 /**
- * Serviço responsável por encapsular a lógica de negócio associada à autenticação.
+ * Service responsible for encapsulating the business logic associated with authentication.
  * 
- * Centraliza as regras de registo (como a validação de e-mails duplicados e 
- * confirmação de senhas) e comunica com o repositório para persistir os dados.
+ * Centralizes registration rules (such as validating duplicate emails and 
+ * confirming passwords) and communicates with the repository to persist data.
  */
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     /**
-     * Construtor para injeção de dependências.
-     * Injetamos a ferramenta de encriptação (PasswordEncoder) e a nossa ligação
-     * à base de dados (UserRepository).
+     * Constructor for dependency injection.
+     * Injects the encryption tool (PasswordEncoder), the database connection
+     * (UserRepository) and the email service.
      */
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     /**
-     * Processa o pedido de registo de um novo utilizador.
+     * Processes the registration request for a new user.
      * 
-     * Executa as seguintes validações:
-     * 1. Verifica se as passwords coincidem.
-     * 2. Garante (através de uma query otimizada) que o e-mail não está em uso.
+     * Executes the following validations:
+     * 1. Checks if the passwords match.
+     * 2. Ensures (via an optimized query) that the email is not already in use.
+     * 3. Validates password strength.
      * 
-     * Converte o DTO (RegisterRequest) numa Entidade (User), encripta a password 
-     * e guarda o registo.
+     * Converts the DTO (RegisterRequest) into an Entity (User), encrypts the password 
+     * and saves the record.
      *
-     * @param request O objeto vindo do frontend com os dados do registo (firstName, email, etc.)
-     * @throws RuntimeException se alguma das regras de negócio for violada.
+     * @param request The object coming from the frontend with registration data (firstName, email, etc.)
+     * @throws RuntimeException if any business rule is violated.
      */
     public void registarNovoUtilizador(RegisterRequest request) {
         
-        // 1. As passwords batem certo? (Validação inicial de segurança)
+        // 1. Do the passwords match? (Initial security validation)
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new RuntimeException("As passwords não coincidem. Por favor, tente novamente.");
+            throw new RuntimeException("Passwords do not match. Please try again.");
         }
 
-        // 2. O e-mail já existe? Utilizamos aqui a pesquisa otimizada que configurou no UserRepository!
+        // Password strength validation
+        String passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])[A-Za-z\\d@$!%*?&#]{8,}$";
+        if (!request.getPassword().matches(passwordRegex)) {
+            throw new RuntimeException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+        }
+
+        // 2. Does the email already exist? We use the optimized search configured in UserRepository!
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Este e-mail já se encontra registado no sistema.");
+            throw new RuntimeException("This email is already registered in the system.");
         }
 
-        // 3. Traduzir o "Mensageiro" (DTO) para a "Realidade" (Base de Dados)
+        // Generate a unique activation token
+        String token = UUID.randomUUID().toString();
+
+        // 3. Translate the DTO into the Database Entity
         User novoUser = User.builder()
-                .nome(request.getFirstName())
-                .apelido(request.getLastName())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
                 .email(request.getEmail())
-                // A regra de ouro da cibersegurança: NUNCA guardar passwords em texto limpo!
+                // Cybersecurity golden rule: NEVER store plain text passwords!
                 .passwordHash(passwordEncoder.encode(request.getPassword())) 
-                // Por defeito, os novos utilizadores têm apenas as permissões base.
+                // By default, new users have basic permissions.
                 .perfil(PerfilEnum.UTILIZADOR) 
-                // TODO: Conforme acordado, forçamos 'ativado = true' temporariamente para podermos testar o login de imediato.
-                // Quando o envio de e-mails de ativação for implementado, remover esta linha!
-                .ativado(true) 
+                .ativado(false) 
+                .activationToken(token)
                 .build();
 
-        // 4. Gravar permanentemente no H2 Database
+        // 4. Save permanently in H2 Database
         userRepository.save(novoUser);
+
+        // 5. Send activation email
+        emailService.enviarEmailConfirmacao(novoUser.getEmail(), novoUser.getFirstName(), token);
+    }
+
+    /**
+     * Validates the token and activates the user account.
+     * @param token The activation token received via email.
+     */
+    public void ativarConta(String token) {
+        java.util.Optional<User> userOptional = userRepository.findByActivationToken(token);
+        
+        if (userOptional.isEmpty()) {
+            // Check if there's any user with an already activated account (token already used)
+            throw new AccountAlreadyActivatedException("Your account is already activated! You can login directly.");
+        }
+        
+        User user = userOptional.get();
+        user.setAtivado(true);
+        user.setActivationToken(null);
+        userRepository.save(user);
+    }
+
+    /**
+     * Specific exception for when the account has already been activated previously.
+     */
+    public static class AccountAlreadyActivatedException extends RuntimeException {
+        public AccountAlreadyActivatedException(String message) {
+            super(message);
+        }
     }
 }
