@@ -10,11 +10,11 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 
 /**
- * Criei esta classe com o propósito de carregar os dados do utilizador durante o processo de autenticação.
- * * Optei por implementar a interface UserDetailsService para estabelecer uma ponte direta
- * entre o motor de segurança nativo do Spring Security e a nossa persistência no H2.
- * Configurei este serviço para que o ecossistema do Spring Boot saiba exatamente como localizar
- * um utilizador e validar as suas permissões de acesso baseadas em sessões.
+ * Class designed to load user data during the authentication process.
+ * * Implements the UserDetailsService interface to establish a direct bridge
+ * between the native Spring Security engine and our persistence in H2.
+ * Configures this service so the Spring Boot ecosystem knows exactly how to locate
+ * a user and validate their access permissions based on sessions.
  */
 @Service
 public class AuthUserLoader implements UserDetailsService {
@@ -22,45 +22,45 @@ public class AuthUserLoader implements UserDetailsService {
     private final UserRepository userRepository;
 
     /**
-     * Configurei a injeção de dependências através do construtor.
-     * Optei por esta abordagem por ser a prática mais segura e recomendada pelo ecossistema Spring Boot,
-     * garantindo a imutabilidade do componente e facilitando a futura escrita de testes unitários.
+     * Dependency injection via constructor.
+     * This is the safest and most recommended practice by the Spring Boot ecosystem,
+     * ensuring component immutability and facilitating future unit tests.
      *
-     * @param userRepository O repositório utilizado para interagir com a tabela de utilizadores.
+     * @param userRepository The repository used to interact with the users table.
      */
     public AuthUserLoader(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     /**
-     * Recuperei os dados do utilizador a partir da base de dados através do e-mail introduzido.
-     * * Desenvolvi este método para ser invocado automaticamente pelo Spring Security no momento do login.
-     * Se o registo for localizado com sucesso, converti os dados do nosso modelo para a classe nativa 
-     * do Spring, mapeando os perfis de acesso diretamente no contexto de segurança da aplicação.
+     * Retrieves user data from the database using the provided email.
+     * * This method is automatically invoked by Spring Security during login.
+     * If the record is successfully found, the data is converted from our model to the native 
+     * Spring class, mapping access profiles directly into the application's security context.
      *
-     * @param email O endereço de e-mail fornecido no ecrã de login do frontend.
-     * @return Um objeto UserDetails preenchido com as credenciais cifradas e permissões do utilizador.
-     * @throws UsernameNotFoundException Lançada se o e-mail não existir na base de dados, interrompendo o login.
+     * @param email The email address provided on the frontend login screen.
+     * @return A UserDetails object populated with encrypted credentials and user permissions.
+     * @throws UsernameNotFoundException Thrown if the email does not exist in the database, interrupting login.
      */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         
-        // Decidi intersetar a busca e lançar uma exceção explícita caso o e-mail não exista na tabela
+        // Intercept the search and throw an explicit exception if the email does not exist in the table
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Utilizador não encontrado com o e-mail: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        // Mapeei a permissão do utilizador convertendo o nosso enum PerfilEnum numa GrantedAuthority.
-        // Adiciono o prefixo "ROLE_" para respeitar o padrão de nomenclatura exigido pelo Spring Security.
+        // Map the user permission by converting our PerfilEnum into a GrantedAuthority.
+        // Adds the prefix "ROLE_" to respect the naming standard required by Spring Security.
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getPerfil().name());
 
-        // Retornei a instância de utilizador nativa do Spring Security através do Builder.
-        // Configurei o estado 'disabled' com base no nosso campo 'ativado', garantindo que 
-        // utilizadores que não validaram a conta sejam automaticamente barrados pelo motor do Spring.
+        // Return the native Spring Security user instance via Builder.
+        // Configure the 'disabled' state based on our 'ativado' field, ensuring that 
+        // users who have not validated their account are automatically blocked by the Spring engine.
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(user.getPasswordHash())
                 .authorities(Collections.singletonList(authority))
-                .disabled(!user.isAtivado()) // Bloqueia o login se ativado == false!
+                .disabled(!user.isAtivado()) // Block login if ativado == false!
                 .build();
     }
 }
