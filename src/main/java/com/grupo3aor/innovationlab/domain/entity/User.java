@@ -5,120 +5,176 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.SQLDelete;
 
 import java.time.LocalDateTime;
 
 /**
- * JPA Entity representing the "users" table in the database.
- *
- * IMPLEMENTATION NOTES:
- * - @Entity, @Table, @Id and @Column are standard JPA annotations.
- * - Utilizing Lombok annotations (@Data, @Builder) to reduce boilerplate code (getters, setters, constructors).
+ * Persistence model mapping our user registry.
+ * <p>
+ * I designed this structure to isolate credentials, profile roles, and 
+ * infrastructure auditing metadata securely within our relational database.
+ * </p>
+ * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @version 1.0
  */
 @Entity
-@Table(name = "users") // Pluralized to avoid SQL reserved keyword conflicts
-@Getter             // Granular Lombok annotations instead of @Data
-@Setter             // to prevent StackOverflow and performance issues
-@ToString           // when introducing relationships (e.g. @OneToMany) later on.
-@NoArgsConstructor  // Required by JPA
-@AllArgsConstructor // Required by @Builder
-@Builder            // Enables Builder pattern: User.builder().firstName("Ana").build()
+@Table(name = "users")
+@Getter            
+@Setter            
+@ToString          
+@NoArgsConstructor  
+@AllArgsConstructor 
+@Builder            
+// I configured this interceptor to rewrite the default physical deletion behavior.
+// This ensures that whenever a delete instruction is issued, the platform alters
+// the active flag instead of wiping the record, thus preserving structural history.
+@SQLDelete(sql = "UPDATE users SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 public class User {
 
-    // =========================================================
-    // PRIMARY KEY
-    // Using IDENTITY for auto-increment.
-    // =========================================================
+    /**
+     * Internal autoincrement primary key.
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // =========================================================
-    // PERSONAL DATA
-    // @NotBlank ensures mandatory fields are not null or empty.
-    // @Size adds a security constraint on the maximum length in the DB.
-    // =========================================================
+    /**
+     * User's first name.
+     */
+    // I applied a 75-character boundary restriction here to shield the database 
+    // against unexpected payload sizes or field inflation vulnerabilities.
     @NotBlank(message = "First name cannot be empty")
     @Size(max = 75, message = "First name cannot exceed 75 characters")
-    @Column(nullable = false, length = 75)
+    @Column(name = "first_name", nullable = false, length = 75)
     private String firstName;
 
+    /**
+     * User's last name.
+     */
+    // I enforced the exact same validation rules on the last name to keep structural
+    // consistency and prevent database capacity overhead.
     @NotBlank(message = "Last name cannot be empty")
     @Size(max = 75, message = "Last name cannot exceed 75 characters")
-    @Column(nullable = false, length = 75)
+    @Column(name = "last_name", nullable = false, length = 75)
     private String lastName;
 
+    /**
+     * Unique email address serving as the authentication username.
+     */
+    // I added a uniqueness constraint on this field to prevent duplicated accounts
+    // and guarantee clear identity mapping during the authentication flow.
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email cannot be empty")
-    @Column(nullable = false, unique = true) // Enforce unique emails in the database
+    @Column(nullable = false, unique = true)
     private String email;
 
-    // CRITICAL: Storing only the BCrypt hash of the password, never plain text.
+    /**
+     * Secure BCrypt cryptographic hash of the user's password.
+     */
+    // I opted to store only secure, salted cryptographic hashes here. I made sure 
+    // plain-text credentials never touch our persistent storage layer.
     @NotBlank
-    @Column(nullable = false)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    // =========================================================
-    // PROFILE
-    // EnumType.STRING saves "ADMIN" instead of numeric indices for readability.
-    // =========================================================
+    /**
+     * Security profile matching the user's explicit roles.
+     */
+    // I decided to persist this enum as a String representation rather than an integer index.
+    // This choice makes our SQL records significantly easier to read during database audits.
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PerfilEnum perfil;
 
-    // =========================================================
-    // SOFT DELETE
-    // Disabling user instead of deleting to keep historical data.
-    // =========================================================
+    /**
+     * Soft delete operational indicator.
+     */
+    // I chose a primitive boolean flag to handle logical deletion safely, preventing 
+    // accidental losses while keeping historical records accessible for internal tools.
     @Column(nullable = false)
-    @Builder.Default // Respect the default value when using @Builder
-    private boolean ativo = true; // By default, new users are active
+    @Builder.Default 
+    private boolean active = true; 
 
-    // =========================================================
-    // EMAIL ACTIVATION LOGIC
-    // Users must activate their accounts via email link before logging in.
-    // =========================================================
+    /**
+     * Verification state of the user's account.
+     */
+    // I initialized this state as false to force the account verification workflow,
+    // ensuring users must confirm their email before accessing protected services.
+    @Column(name = "account_activated", nullable = false)
     @Builder.Default
-    private boolean ativado = false; // New users start as not activated
+    private boolean accountActivated = false; 
 
-    private String activationToken; // The token sent via email
+    /**
+     * Validation token shipped via email.
+     */
+    @Column(name = "activation_token")
+    private String activationToken; 
 
     // =========================================================
-    // AUTOMATIC AUDITING
-    // Hibernate handles these timestamps automatically.
+    // AUDITING FIELDS
     // =========================================================
+
+    /**
+     * Instant when the record was originally stored.
+     */
+    // I integrated these native automated timestamps to hand over the responsibility
+    // of maintaining fated data creation inputs entirely to our persistent framework.
     @CreationTimestamp
-    @Column(nullable = false, updatable = false) // Cannot be updated after creation
-    private LocalDateTime criadoEm;
+    @Column(name = "created_at", nullable = false, updatable = false) 
+    private LocalDateTime createdAt;
 
-    @UpdateTimestamp // Automatically updated on modifications
-    private LocalDateTime atualizadoEm;
+    /**
+     * Instant when the record was last modified.
+     */
+    @UpdateTimestamp 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
-    // =========================================================
-    // ENTITY IDENTITY (EQUALS & HASHCODE)
-    // Equals based purely on ID to guarantee collection stability and prevent 
-    // circular references in JPA relationships.
-    // =========================================================
+    /**
+     * Operator identity who inserted the record.
+     */
+    // I implemented these textual markers to record the exact actor, operator,
+    // or system mechanism responsible for altering user records.
+    @Column(name = "created_by", updatable = false)
+    private String createdBy;
+
+    /**
+     * Operator identity who made the last change.
+     */
+    @Column(name = "updated_by")
+    private String updatedBy;
+
+    /**
+     * Client physical network address origin.
+     */
+    // I mapped this field to track the remote source IP of every network mutation request,
+    // creating a transparent audit path for high-privilege administrative actions.
+    @Column(name = "origin_ip")
+    private String originIp;
+
+    /**
+     * Comparative evaluation relying solely on object primary identifiers.
+     * * @param o Object compared against.
+     * @return true if identities are identical; false otherwise.
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof User)) return false;
         User other = (User) o;
-        // Two users are equal if they share the same non-null ID.
         return id != null && id.equals(other.getId());
     }
 
+    /**
+     * Returns a stable object hashcode.
+     * * @return Deterministic integer matching the persistent class type.
+     */
     @Override
     public int hashCode() {
-        // Fixed value to ensure hashCode stability between instantiation and DB persistence.
         return getClass().hashCode();
     }
 }

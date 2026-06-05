@@ -60,7 +60,7 @@ public class AuthUserLoader implements UserDetailsService {
                 .username(user.getEmail())
                 .password(user.getPasswordHash())
                 .authorities(Collections.singletonList(authority))
-                .disabled(!user.isAtivado()) // Block login if ativado == false!
+                .disabled(!user.isAccountActivated()) // Block login if accountActivated == false!
                 .build();
     }
 }

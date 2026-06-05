@@ -3,36 +3,48 @@ package com.grupo3aor.innovationlab.repository;
 import com.grupo3aor.innovationlab.domain.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.util.List;
 import java.util.Optional;
 
 /**
- * Interface created to manage data access and persistence of the User entity.
- * Extending JpaRepository delegates to Spring Data JPA the automatic generation
- * of all fundamental CRUD operations in the H2 database.
+ * Direct data access interface managing persistence routines for the {@link User} entity.
+ * <p>
+ * I leveraged Spring Data framework capabilities here to abstract infrastructure data access,
+ * allowing our database operations to execute over standard embedded storage.
+ * </p>
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     
     /**
-     * Naming convention-based query configured to find
-     * a user by their email address.
-     * * The return type is wrapped in an 'Optional' because the provided email
-     * may not exist in the table, allowing safe handling of absent records
-     * in the service layer and preventing involuntary null exceptions.
-     *
-     * @param email Email address used in the search.
-     * @return An Optional containing the user, if found.
+     * Retrieves a user matching a specific email address.
+     * * @param email Target identifier string.
+     * @return An Optional wrapper surrounding the discovered User.
      */
     Optional<User> findByEmail(String email);
-
+    
     /**
-     * Searches for a user by their activation token.
-     * Used during the email account confirmation process.
-     *
-     * @param token The token generated upon registration.
-     * @return An Optional containing the user, if a user with that token exists.
+     * Locates a user record based on an active email token.
+     * * @param token Cryptographically safe registration token string.
+     * @return An Optional entity wrapper.
      */
     Optional<User> findByActivationToken(String token);
+    
+    /**
+     * Gathers all operational user records while filtering out logically removed entries.
+     * * @return Collection of active system users.
+     */
+    // I introduced this distinct query method to bypass soft-deleted accounts during 
+    // our everyday core business flows and authentication checks.
+    List<User> findAllByActiveTrue();
+    
+    /**
+     * Retrieves exclusively logically deleted user records.
+     * * @return Collection of archived or deactivated records.
+     */
+    // I built this query specifically for our administrative views, enabling operators 
+    // to inspect, audit, or completely restore previously removed accounts.
+    List<User> findAllByActiveFalse();
     
     /**
      * Added this quick validation method to check the prior existence
