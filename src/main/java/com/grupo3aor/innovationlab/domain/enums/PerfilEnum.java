@@ -1,17 +1,20 @@
 package com.grupo3aor.innovationlab.domain.enums;
 
 /**
- * Aqui decidi definir os três tipos de perfil de utilizador que vamos ter no nosso sistema.
+ * I decided to define the three distinct user profile roles operating within our system.
+ * <p>
+ * - ADMIN:   Our global Administrator. I assigned this role to manage users and system configurations.
+ * - MANAGER: The laboratory Manager. I gave this role clearance to create simulation rules and analyze alerts.
+ * - USER:    The standard laboratory User. I restricted this role to executing simulations and viewing personal data.
+ * </p>
+ * NOTE: Further down the pipeline in the User entity, I mapped this enum using the @Enumerated(EnumType.STRING) annotation.
+ * I engineered it this way to ensure database records remain highly readable during audits, avoiding obscure numerical indices.
  *
- * - ADMIN:       O nosso Administrador. É ele que gere os utilizadores e atribui os perfis.
- * - GESTOR:      O Gestor do laboratório. É quem cria as regras e analisa os alertas recebidos.
- * - UTILIZADOR:  O Utilizador padrão do sistema. Pode iniciar as simulações e consultar os seus próprios dados.
- *
- * NOTA: Mais à frente, na entidade User, uso a anotação @Enumerated para guardar o valor como texto (EnumType.STRING) na base de dados.
- * Faço isto porque fica muito mais legível quando formos ver a tabela, em vez de ficarem lá guardados os índices numéricos (0, 1, 2).
+ * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @version 1.0
  */
 public enum PerfilEnum {
     ADMIN,
-    GESTOR,
-    UTILIZADOR
+    MANAGER,
+    USER
 }

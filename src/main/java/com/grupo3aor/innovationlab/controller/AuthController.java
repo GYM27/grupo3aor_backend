@@ -3,6 +3,7 @@ package com.grupo3aor.innovationlab.controller;
 import com.grupo3aor.innovationlab.domain.entity.User;
 import com.grupo3aor.innovationlab.dto.LoginRequest;
 import com.grupo3aor.innovationlab.dto.RegisterRequest;
+import com.grupo3aor.innovationlab.dto.UserResponse;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -108,11 +109,19 @@ public class AuthController {
             log.info("[AUDIT] Action: SUCCESSFUL_LOGIN | Authenticated User: {} | Profile clearance: {} | Origin IP: {}", 
                     user.getEmail(), user.getPerfil().name(), clientIp);
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Login successful",
-                    "perfil", user.getPerfil().name(),
-                    "nomeCompleto", user.getFirstName() + " " + user.getLastName()
-            ));
+            // I standardized the successful login return payload here. Instead of constructing 
+            // an un-typed dynamic map on the fly, I map the authenticated context straight into 
+            // our new UserResponse structure, establishing a predictable schema interface for the frontend.
+            UserResponse responseBody = UserResponse.builder()
+                    .email(user.getEmail())
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .perfil(user.getPerfil().name())
+                    .accountActivated(user.isAccountActivated())
+                    .createdAt(user.getCreatedAt())
+                    .build();
+
+            return ResponseEntity.ok(responseBody);
 
         } catch (Exception e) {
             // I set this generic trap block to catch validation anomalies or incorrect 

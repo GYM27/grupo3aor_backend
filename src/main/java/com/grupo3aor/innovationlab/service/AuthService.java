@@ -82,7 +82,7 @@ public class AuthService {
                 .lastName(request.getLastName())
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword())) 
-                .perfil(PerfilEnum.UTILIZADOR) // Reverted to UTILIZADOR as per the current Enum
+                .perfil(PerfilEnum.USER) // Automatically assigning the base tier role
                 .accountActivated(false) 
                 .activationToken(token)
                 .createdBy("SELF_REGISTRATION_FLOW")
@@ -93,7 +93,7 @@ public class AuthService {
 
         // I delegated the notification logic to our mailing infrastructure, transmitting the 
         // token parameters safely to verify mailbox ownership.
-        emailService.enviarEmailConfirmacao(newUser.getEmail(), newUser.getFirstName(), token);
+        emailService.sendConfirmationEmail(newUser.getEmail(), newUser.getFirstName(), token);
     }
 
     /**
