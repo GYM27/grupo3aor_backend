@@ -26,7 +26,7 @@ public class SimulationResponse {
 
     private UUID id;
     
-    private String scenarioId;
+    private Long scenarioId;
     
     private String userEmail;
     

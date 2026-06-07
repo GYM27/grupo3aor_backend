@@ -55,11 +55,13 @@ public class Rule extends Auditable {
 
     // =========================================================
     // THE PHYSIOLOGICAL SYSTEM
-    // For now, I'm just saving the system ID as a String to keep it simple,
-    // until we fully map the PhysiologicalSystem entity!
+    // I mapped this to the actual PhysiologicalSystem entity to guarantee
+    // database referential integrity!
     // =========================================================
-    @Column(name = "system_id")
-    private String systemId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "system_id", nullable = false)
+    @ToString.Exclude
+    private PhysiologicalSystem system;
 
     // =========================================================
     // WHO CREATED THIS RULE

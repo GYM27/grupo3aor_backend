@@ -26,7 +26,7 @@ public class RuleResponse {
 
     private UUID id;
     
-    private String systemId;
+    private Long systemId;
     
     private String expressionDsl;
     

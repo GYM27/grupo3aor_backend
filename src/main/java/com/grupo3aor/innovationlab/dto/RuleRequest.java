@@ -23,8 +23,8 @@ import lombok.AllArgsConstructor;
 @Builder
 public class RuleRequest {
 
-    @NotBlank(message = "System ID cannot be empty")
-    private String systemId;
+    @NotNull(message = "System ID cannot be empty")
+    private Long systemId;
 
     @NotBlank(message = "Expression DSL cannot be empty")
     private String expressionDsl;

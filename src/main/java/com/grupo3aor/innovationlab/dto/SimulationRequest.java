@@ -1,6 +1,6 @@
 package com.grupo3aor.innovationlab.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,7 +21,7 @@ import lombok.AllArgsConstructor;
 @Builder
 public class SimulationRequest {
 
-    @NotBlank(message = "Scenario ID cannot be empty")
-    private String scenarioId;
+    @NotNull(message = "Scenario ID cannot be empty")
+    private Long scenarioId;
 
 }

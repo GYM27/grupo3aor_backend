@@ -36,11 +36,13 @@ public class Simulation extends Auditable {
 
     // =========================================================
     // THE SCENARIO REFERENCE
-    // I'm just keeping the ID as a String for now, until we fully build 
-    // the ClinicalScenario entity.
+    // Mapped to the real ClinicalScenario entity to ensure we only
+    // run simulations for scenarios that actually exist in the DB!
     // =========================================================
-    @Column(name = "scenario_id")
-    private String scenarioId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scenario_id", nullable = false)
+    @ToString.Exclude
+    private ClinicalScenario scenario;
 
     // =========================================================
     // THE USER EXECUTING IT
