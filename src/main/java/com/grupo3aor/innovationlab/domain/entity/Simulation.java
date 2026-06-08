@@ -2,7 +2,7 @@ package com.grupo3aor.innovationlab.domain.entity;
 
 import com.grupo3aor.innovationlab.domain.enums.SimulationStatus;
 import jakarta.persistence.*;
-import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -22,7 +22,7 @@ import java.util.UUID;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class Simulation extends Auditable {
 
     // =========================================================

@@ -9,6 +9,7 @@ import com.grupo3aor.innovationlab.dto.SimulationResponse;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.ClinicalScenarioRepository;
+import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +43,7 @@ public class SimulationService {
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
 
         ClinicalScenario scenario = scenarioRepository.findById(request.getScenarioId())
-                .orElseThrow(() -> new IllegalArgumentException("Clinical Scenario not found with ID: " + request.getScenarioId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Clinical Scenario not found with ID: " + request.getScenarioId()));
 
         Simulation sim = Simulation.builder()
                 .scenario(scenario)
@@ -60,7 +61,7 @@ public class SimulationService {
      */
     public SimulationResponse stopSimulation(UUID simulationId) {
         Simulation sim = simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new IllegalArgumentException("Simulation not found with ID: " + simulationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
 
         // Let's protect it so we don't end a simulation that is already finished or canceled!
         if (sim.getStatus() == SimulationStatus.FINALIZADA || sim.getStatus() == SimulationStatus.CANCELADA) {
@@ -88,7 +89,7 @@ public class SimulationService {
      */
     public SimulationResponse cancelSimulation(UUID simulationId) {
         Simulation sim = simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new IllegalArgumentException("Simulation not found with ID: " + simulationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
 
         if (sim.getStatus() == SimulationStatus.FINALIZADA || sim.getStatus() == SimulationStatus.CANCELADA) {
             throw new IllegalStateException("Simulation is already finalized or canceled.");

@@ -34,13 +34,9 @@ public class RuleController {
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> createRule(@Valid @RequestBody RuleRequest request, Authentication authentication) {
-        try {
-            String operatorEmail = authentication.getName();
-            RuleResponse response = ruleService.createRule(request, operatorEmail);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        String operatorEmail = authentication.getName();
+        RuleResponse response = ruleService.createRule(request, operatorEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -60,12 +56,8 @@ public class RuleController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deactivateRule(@PathVariable UUID id) {
-        try {
-            ruleService.deactivateRule(id);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        ruleService.deactivateRule(id);
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -74,12 +66,8 @@ public class RuleController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> updateRule(@PathVariable UUID id, @Valid @RequestBody RuleRequest request, Authentication authentication) {
-        try {
-            String operatorEmail = authentication.getName();
-            RuleResponse response = ruleService.updateRule(id, request, operatorEmail);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        String operatorEmail = authentication.getName();
+        RuleResponse response = ruleService.updateRule(id, request, operatorEmail);
+        return ResponseEntity.ok(response);
     }
 }

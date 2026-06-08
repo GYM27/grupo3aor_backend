@@ -3,6 +3,7 @@ package com.grupo3aor.innovationlab.service;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalSystem;
 import com.grupo3aor.innovationlab.dto.PhysiologicalSystemRequest;
 import com.grupo3aor.innovationlab.dto.PhysiologicalSystemResponse;
+import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.repository.PhysiologicalSystemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -83,13 +84,47 @@ public class PhysiologicalSystemService {
     @Transactional
     public void deleteSystem(Long id, String operatorEmail) {
         PhysiologicalSystem system = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("System not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
 
         // The @SQLDelete annotation on the entity model intercepts this instruction
         // and translates it into an UPDATE statement, securing historical data.
         repository.delete(system);
 
         log.info("[AUDIT] Action: SYSTEM_SOFT_DELETED | Target ID: {} | Operator: {}", id, operatorEmail);
+    }
+
+    /**
+     * Retrieves a single system by its ID.
+     */
+    @Transactional(readOnly = true)
+    public PhysiologicalSystemResponse getSystemById(Long id) {
+        PhysiologicalSystem system = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
+        return mapToResponse(system);
+    }
+
+    /**
+     * Updates an existing physiological system.
+     */
+    @Transactional
+    public PhysiologicalSystemResponse updateSystem(Long id, PhysiologicalSystemRequest request, String operatorEmail, String originIp) {
+        PhysiologicalSystem system = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
+
+        if (!system.getSystemName().equalsIgnoreCase(request.getSystemName()) &&
+            repository.findBySystemName(request.getSystemName()).isPresent()) {
+            throw new IllegalArgumentException("A physiological system with this name already exists.");
+        }
+
+        system.setSystemName(request.getSystemName());
+        system.setUpdatedBy(operatorEmail);
+
+        PhysiologicalSystem updatedSystem = repository.save(system);
+
+        log.info("[AUDIT] Action: SYSTEM_UPDATED | Target ID: {} | Operator: {} | IP: {}", 
+                 updatedSystem.getId(), operatorEmail, originIp);
+
+        return mapToResponse(updatedSystem);
     }
 
     /**

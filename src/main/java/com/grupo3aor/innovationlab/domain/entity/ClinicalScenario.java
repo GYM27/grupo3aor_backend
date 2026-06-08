@@ -4,17 +4,16 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
 
 /**
  * Persistence model mapping our clinical scenarios registry.
  * <p>
  * I engineered this entity to track medical simulation setups, ensuring every scenario 
  * has proper descriptive boundaries and immutable auditing metadata attached to it.
+ * I refactored it to extend {@link Auditable}, eliminating duplicated audit columns
+ * and guaranteeing structural consistency across the entire domain model.
  * </p>
  * * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
@@ -26,11 +25,11 @@ import java.time.LocalDateTime;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 // I enforced soft deletion here as well to guarantee that no clinical setups 
 // are ever permanently destroyed, keeping them available for historical reporting.
 @SQLDelete(sql = "UPDATE clinical_scenarios SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-public class ClinicalScenario {
+public class ClinicalScenario extends Auditable {
 
     /**
      * Internal autoincrement primary key.
@@ -62,42 +61,6 @@ public class ClinicalScenario {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
-
-    // =========================================================
-    // AUDITING FIELDS
-    // =========================================================
-
-    /**
-     * Instant when the record was originally stored.
-     */
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    /**
-     * Instant when the record was last modified.
-     */
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    /**
-     * Operator identity who inserted the record.
-     */
-    @Column(name = "created_by", updatable = false)
-    private String createdBy;
-
-    /**
-     * Operator identity who made the last change.
-     */
-    @Column(name = "updated_by")
-    private String updatedBy;
-
-    /**
-     * Client physical network address origin.
-     */
-    @Column(name = "origin_ip")
-    private String originIp;
 
     @Override
     public boolean equals(Object o) {

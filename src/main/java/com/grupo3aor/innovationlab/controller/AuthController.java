@@ -12,9 +12,8 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,21 +38,10 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final AuthService authService;
-    private final AuthenticationManager authenticationManager;
 
-    /**
-     * Direct structural constructor injecting mandatory application modules.
-     * * @param userRepository Core database layer interface managing persistence rows.
-     * @param authService Core domain service layer handling business transaction validations.
-     * @param authenticationManager Infrastructure subsystem manager running standard authentication tasks.
-     */
-    public AuthController(UserRepository userRepository, AuthService authService, 
-                          AuthenticationManager authenticationManager) {
-        // I injected these concrete boundaries to keep a rigorous distinction between 
-        // raw row operations, persistent business transactions, and security workflows.
+    public AuthController(UserRepository userRepository, AuthService authService) {
         this.userRepository = userRepository;
         this.authService = authService;
-        this.authenticationManager = authenticationManager;
     }
 
     /**
@@ -64,71 +52,22 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        // I pulled the remote client address context immediately to log the exact 
-        // network location attempting to gain access to our services.
         String clientIp = httpRequest.getRemoteAddr();
 
-        // I decided to perform an early identity check against our persistence rows 
-        // to handle account existence states before running any intensive hashing workloads.
-        Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
-
-        if (userOptional.isEmpty()) {
-            log.warn("[SECURITY_ALERT] Action: FAILED_LOGIN_ATTEMPT | Target Email: {} | Reason: EMAIL_NOT_FOUND | Origin IP: {}", 
-                    request.getEmail(), clientIp);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
-        }
-
-        User user = userOptional.get();
-
-        // I integrated this strict activation gate to block unverified email profiles 
-        // from utilizing application resources, enforcing account verification workflows up front.
-        if (!user.isAccountActivated()) {
-            log.warn("[SECURITY_ALERT] Action: FAILED_LOGIN_ATTEMPT | Target Email: {} | Reason: ACCOUNT_NOT_ACTIVATED | Origin IP: {}", 
-                    request.getEmail(), clientIp);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Account not activated. Please check your email."));
-        }
-
         try {
-            // I packaged the raw credentials token to submit it down to our validation subsystem.
-            UsernamePasswordAuthenticationToken authenticationToken = 
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
-
-            // I delegated the actual cryptographic hash comparison routines completely 
-            // to our security ecosystem manager.
-            Authentication authentication = authenticationManager.authenticate(authenticationToken);
-
-            // I deposited the validated token directly inside the global thread context 
-            // memory storage to lock the client clearance state.
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            UserResponse responseBody = authService.authenticateUser(request, clientIp);
 
             // I explicitly forced session instantiation on the server memory bounds, 
             // making sure authentication data resides safely on the server side.
             HttpSession session = httpRequest.getSession(true);
             session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
-            log.info("[AUDIT] Action: SUCCESSFUL_LOGIN | Authenticated User: {} | Profile clearance: {} | Origin IP: {}", 
-                    user.getEmail(), user.getPerfil().name(), clientIp);
-
-            // I standardized the successful login return payload here. Instead of constructing 
-            // an un-typed dynamic map on the fly, I map the authenticated context straight into 
-            // our new UserResponse structure, establishing a predictable schema interface for the frontend.
-            UserResponse responseBody = UserResponse.builder()
-                    .email(user.getEmail())
-                    .firstName(user.getFirstName())
-                    .lastName(user.getLastName())
-                    .perfil(user.getPerfil().name())
-                    .accountActivated(user.isAccountActivated())
-                    .createdAt(user.getCreatedAt())
-                    .build();
-
             return ResponseEntity.ok(responseBody);
 
-        } catch (Exception e) {
-            // I set this generic trap block to catch validation anomalies or incorrect 
-            // password attempts, responding with unified error formats to prevent username enumeration.
-            log.warn("[SECURITY_ALERT] Action: FAILED_LOGIN_ATTEMPT | Target Email: {} | Reason: INVALID_CREDENTIALS | Origin IP: {}", 
-                    request.getEmail(), clientIp);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
     }
 

@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -29,6 +30,7 @@ import java.util.Arrays;
  */
 @Configuration      // Tells Spring: "Attention, this class contains configurations!"
 @EnableWebSecurity  // Immediately enables Spring's main security system.
+@EnableMethodSecurity // Activates @PreAuthorize annotations across the application.
 public class SecurityConfig {
 
     /**

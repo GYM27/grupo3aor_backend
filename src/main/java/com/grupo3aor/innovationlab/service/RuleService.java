@@ -8,6 +8,7 @@ import com.grupo3aor.innovationlab.dto.RuleResponse;
 import com.grupo3aor.innovationlab.repository.RuleRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.PhysiologicalSystemRepository;
+import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -45,7 +46,7 @@ public class RuleService {
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
 
         PhysiologicalSystem system = systemRepository.findById(request.getSystemId())
-                .orElseThrow(() -> new IllegalArgumentException("Physiological System not found with ID: " + request.getSystemId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
 
         Rule rule = Rule.builder()
                 .system(system)
@@ -73,7 +74,7 @@ public class RuleService {
      */
     public void deactivateRule(UUID ruleId) {
         if (!ruleRepository.existsById(ruleId)) {
-            throw new IllegalArgumentException("Rule not found with ID: " + ruleId);
+            throw new ResourceNotFoundException("Rule not found with ID: " + ruleId);
         }
         ruleRepository.deleteById(ruleId);
     }
@@ -83,10 +84,10 @@ public class RuleService {
      */
     public RuleResponse updateRule(UUID ruleId, RuleRequest request, String userEmail) {
         Rule rule = ruleRepository.findById(ruleId)
-                .orElseThrow(() -> new IllegalArgumentException("Rule not found with ID: " + ruleId));
+                .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
 
         PhysiologicalSystem system = systemRepository.findById(request.getSystemId())
-                .orElseThrow(() -> new IllegalArgumentException("Physiological System not found with ID: " + request.getSystemId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
 
         rule.setSystem(system);
         rule.setExpressionDsl(request.getExpressionDsl());

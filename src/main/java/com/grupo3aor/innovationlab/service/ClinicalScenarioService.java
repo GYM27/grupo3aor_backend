@@ -3,6 +3,7 @@ package com.grupo3aor.innovationlab.service;
 import com.grupo3aor.innovationlab.domain.entity.ClinicalScenario;
 import com.grupo3aor.innovationlab.dto.ClinicalScenarioRequest;
 import com.grupo3aor.innovationlab.dto.ClinicalScenarioResponse;
+import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.repository.ClinicalScenarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,11 +81,46 @@ public class ClinicalScenarioService {
     @Transactional
     public void deleteScenario(Long id, String operatorEmail) {
         ClinicalScenario scenario = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Scenario not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
 
         repository.delete(scenario);
 
         log.info("[AUDIT] Action: SCENARIO_SOFT_DELETED | Target ID: {} | Operator: {}", id, operatorEmail);
+    }
+
+    /**
+     * Retrieves a single scenario by its ID.
+     */
+    @Transactional(readOnly = true)
+    public ClinicalScenarioResponse getScenarioById(Long id) {
+        ClinicalScenario scenario = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
+        return mapToResponse(scenario);
+    }
+
+    /**
+     * Updates an existing clinical scenario.
+     */
+    @Transactional
+    public ClinicalScenarioResponse updateScenario(Long id, ClinicalScenarioRequest request, String operatorEmail, String originIp) {
+        ClinicalScenario scenario = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
+
+        if (!scenario.getName().equalsIgnoreCase(request.getName()) &&
+            repository.findByName(request.getName()).isPresent()) {
+            throw new IllegalArgumentException("A clinical scenario with this name already exists.");
+        }
+
+        scenario.setName(request.getName());
+        scenario.setDescription(request.getDescription());
+        scenario.setUpdatedBy(operatorEmail);
+
+        ClinicalScenario updatedScenario = repository.save(scenario);
+
+        log.info("[AUDIT] Action: SCENARIO_UPDATED | Target ID: {} | Operator: {} | IP: {}", 
+                 updatedScenario.getId(), operatorEmail, originIp);
+
+        return mapToResponse(updatedScenario);
     }
 
     /**
