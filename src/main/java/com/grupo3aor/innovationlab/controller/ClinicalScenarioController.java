@@ -66,4 +66,31 @@ public class ClinicalScenarioController {
         scenarioService.deleteScenario(id, operatorEmail);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Retrieves a single scenario by ID.
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ClinicalScenarioResponse> getScenarioById(@PathVariable Long id) {
+        return ResponseEntity.ok(scenarioService.getScenarioById(id));
+    }
+
+    /**
+     * Updates an existing scenario configuration.
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ClinicalScenarioResponse> updateScenario(
+            @PathVariable Long id,
+            @Valid @RequestBody ClinicalScenarioRequest request,
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
+            
+        String operatorEmail = authentication.getName();
+        String originIp = httpRequest.getRemoteAddr();
+
+        ClinicalScenarioResponse response = scenarioService.updateScenario(id, request, operatorEmail, originIp);
+        return ResponseEntity.ok(response);
+    }
 }

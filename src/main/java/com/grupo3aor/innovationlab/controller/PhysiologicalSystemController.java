@@ -72,4 +72,31 @@ public class PhysiologicalSystemController {
         systemService.deleteSystem(id, operatorEmail);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Retrieves a single system by ID.
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PhysiologicalSystemResponse> getSystemById(@PathVariable Long id) {
+        return ResponseEntity.ok(systemService.getSystemById(id));
+    }
+
+    /**
+     * Updates an existing system configuration.
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<PhysiologicalSystemResponse> updateSystem(
+            @PathVariable Long id,
+            @Valid @RequestBody PhysiologicalSystemRequest request,
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
+            
+        String operatorEmail = authentication.getName();
+        String originIp = httpRequest.getRemoteAddr();
+
+        PhysiologicalSystemResponse response = systemService.updateSystem(id, request, operatorEmail, originIp);
+        return ResponseEntity.ok(response);
+    }
 }

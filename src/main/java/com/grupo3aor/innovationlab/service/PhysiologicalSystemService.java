@@ -94,6 +94,40 @@ public class PhysiologicalSystemService {
     }
 
     /**
+     * Retrieves a single system by its ID.
+     */
+    @Transactional(readOnly = true)
+    public PhysiologicalSystemResponse getSystemById(Long id) {
+        PhysiologicalSystem system = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
+        return mapToResponse(system);
+    }
+
+    /**
+     * Updates an existing physiological system.
+     */
+    @Transactional
+    public PhysiologicalSystemResponse updateSystem(Long id, PhysiologicalSystemRequest request, String operatorEmail, String originIp) {
+        PhysiologicalSystem system = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
+
+        if (!system.getSystemName().equalsIgnoreCase(request.getSystemName()) &&
+            repository.findBySystemName(request.getSystemName()).isPresent()) {
+            throw new IllegalArgumentException("A physiological system with this name already exists.");
+        }
+
+        system.setSystemName(request.getSystemName());
+        system.setUpdatedBy(operatorEmail);
+
+        PhysiologicalSystem updatedSystem = repository.save(system);
+
+        log.info("[AUDIT] Action: SYSTEM_UPDATED | Target ID: {} | Operator: {} | IP: {}", 
+                 updatedSystem.getId(), operatorEmail, originIp);
+
+        return mapToResponse(updatedSystem);
+    }
+
+    /**
      * Helper conversion mechanism.
      */
     private PhysiologicalSystemResponse mapToResponse(PhysiologicalSystem entity) {

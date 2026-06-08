@@ -5,6 +5,15 @@ import com.grupo3aor.innovationlab.domain.enums.PerfilEnum;
 import com.grupo3aor.innovationlab.dto.RegisterRequest;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.grupo3aor.innovationlab.dto.LoginRequest;
+import com.grupo3aor.innovationlab.dto.UserResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,24 +30,26 @@ import java.util.UUID;
  * @version 1.0
  */
 @Service
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuthenticationManager authenticationManager;
 
     /**
      * Main constructor mapping core dependencies required for safe authorization lifecycles.
      * * @param userRepository Core interface abstracting persistent storage engines.
      * @param passwordEncoder Cryptographic processing component handling irreversible hashing.
      * @param emailService Mail infrastructure module handling outbound notification links.
+     * @param authenticationManager Infrastructure subsystem manager running standard authentication tasks.
      */
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
-        // I injected these modules to keep a clean separation between data access, 
-        // hashing utilities, and outbound notification networks.
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
+        this.authenticationManager = authenticationManager;
     }
 
     /**
@@ -135,6 +146,51 @@ public class AuthService {
          */
         public AccountAlreadyActivatedException(String message) {
             super(message);
+        }
+    }
+
+    /**
+     * Orchestrates the login workflow including validation, hashing and context setup.
+     */
+    @Transactional(readOnly = true)
+    public UserResponse authenticateUser(LoginRequest request, String clientIp) {
+        Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
+
+        if (userOptional.isEmpty()) {
+            log.warn("[SECURITY_ALERT] Action: FAILED_LOGIN_ATTEMPT | Target Email: {} | Reason: EMAIL_NOT_FOUND | Origin IP: {}", 
+                    request.getEmail(), clientIp);
+            throw new BadCredentialsException("Invalid credentials");
+        }
+
+        User user = userOptional.get();
+
+        if (!user.isAccountActivated()) {
+            log.warn("[SECURITY_ALERT] Action: FAILED_LOGIN_ATTEMPT | Target Email: {} | Reason: ACCOUNT_NOT_ACTIVATED | Origin IP: {}", 
+                    request.getEmail(), clientIp);
+            throw new DisabledException("Account not activated. Please check your email.");
+        }
+
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            log.info("[AUDIT] Action: SUCCESSFUL_LOGIN | Authenticated User: {} | Profile clearance: {} | Origin IP: {}", 
+                    user.getEmail(), user.getPerfil().name(), clientIp);
+                    
+            return UserResponse.builder()
+                    .email(user.getEmail())
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .perfil(user.getPerfil().name())
+                    .accountActivated(user.isAccountActivated())
+                    .createdAt(user.getCreatedAt())
+                    .build();
+        } catch (Exception e) {
+            log.warn("[SECURITY_ALERT] Action: FAILED_LOGIN_ATTEMPT | Target Email: {} | Reason: INVALID_CREDENTIALS | Origin IP: {}", 
+                    request.getEmail(), clientIp);
+            throw new BadCredentialsException("Invalid credentials");
         }
     }
 }
