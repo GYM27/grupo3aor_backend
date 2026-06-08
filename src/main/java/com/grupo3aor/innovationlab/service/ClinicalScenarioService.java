@@ -3,6 +3,7 @@ package com.grupo3aor.innovationlab.service;
 import com.grupo3aor.innovationlab.domain.entity.ClinicalScenario;
 import com.grupo3aor.innovationlab.dto.ClinicalScenarioRequest;
 import com.grupo3aor.innovationlab.dto.ClinicalScenarioResponse;
+import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.repository.ClinicalScenarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,7 +81,7 @@ public class ClinicalScenarioService {
     @Transactional
     public void deleteScenario(Long id, String operatorEmail) {
         ClinicalScenario scenario = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Scenario not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
 
         repository.delete(scenario);
 

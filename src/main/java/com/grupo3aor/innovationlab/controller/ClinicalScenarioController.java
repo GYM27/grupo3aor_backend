@@ -40,16 +40,11 @@ public class ClinicalScenarioController {
             Authentication authentication,
             HttpServletRequest httpRequest) {
 
-        try {
-            String operatorEmail = authentication.getName();
-            String originIp = httpRequest.getRemoteAddr();
+        String operatorEmail = authentication.getName();
+        String originIp = httpRequest.getRemoteAddr();
 
-            ClinicalScenarioResponse response = scenarioService.createScenario(request, operatorEmail, originIp);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        ClinicalScenarioResponse response = scenarioService.createScenario(request, operatorEmail, originIp);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -67,12 +62,8 @@ public class ClinicalScenarioController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deleteScenario(@PathVariable Long id, Authentication authentication) {
-        try {
-            String operatorEmail = authentication.getName();
-            scenarioService.deleteScenario(id, operatorEmail);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        String operatorEmail = authentication.getName();
+        scenarioService.deleteScenario(id, operatorEmail);
+        return ResponseEntity.ok().build();
     }
 }

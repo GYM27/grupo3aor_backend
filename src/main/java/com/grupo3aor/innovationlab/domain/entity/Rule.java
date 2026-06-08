@@ -2,7 +2,7 @@ package com.grupo3aor.innovationlab.domain.entity;
 
 import com.grupo3aor.innovationlab.domain.enums.Severity;
 import jakarta.persistence.*;
-import lombok.Builder;
+import lombok.experimental.SuperBuilder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -23,7 +23,7 @@ import java.util.UUID;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 // I added the SQLDelete interceptor to ensure Soft Delete works perfectly at the database level!
 @SQLDelete(sql = "UPDATE rules SET deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 public class Rule extends Auditable {

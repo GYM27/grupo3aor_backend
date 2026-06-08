@@ -54,9 +54,10 @@ public class AuthUserLoader implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        // I decided to append the standard role prefix to our profile configuration enum. 
-        // This ensures full compatibility with standard role-checking annotations on our endpoints.
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getPerfil().name());
+        // I removed the "ROLE_" prefix here. Our controllers use @PreAuthorize("hasAuthority('ADMIN')")
+        // which looks for the exact string "ADMIN" without any prefix. This aligns the security 
+        // context perfectly with our endpoint authorizations.
+        SimpleGrantedAuthority authority = new SimpleGrantedAuthority(user.getPerfil().name());
 
         // I constructed the outward-facing security user instance utilizing the native builder utility.
         // I explicitly mapped the account activation status to the disabled state property.

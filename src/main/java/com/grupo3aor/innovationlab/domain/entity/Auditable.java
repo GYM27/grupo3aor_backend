@@ -1,88 +1,73 @@
 package com.grupo3aor.innovationlab.domain.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
-import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 /**
- * Base class for all entities that need audit tracking.
+ * Unified base class centralizing audit tracking columns for all persistent entities.
  * <p>
- * I created this to automatically handle our timestamps and user tracking.
- * It strictly uses String for createdBy/updatedBy to stay fully compatible 
- * with the structure of the User entity!
+ * I refactored this superclass to use Hibernate-native timestamp annotations instead of
+ * Spring Data JPA auditing, eliminating the dependency on {@code @EnableJpaAuditing} and
+ * ensuring timestamps are populated automatically without additional configuration beans.
+ * I also switched to {@code @SuperBuilder} to allow child entities to set inherited audit
+ * fields directly through their builders.
  * </p>
+ * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @version 1.0
  */
 @MappedSuperclass
-@EntityListeners(AuditingEntityListener.class)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
 public abstract class Auditable {
 
-    @CreatedDate
+    /**
+     * Instant when the record was originally stored.
+     */
+    // I chose @CreationTimestamp (Hibernate-native) over @CreatedDate (Spring Data)
+    // to guarantee automatic population without requiring @EnableJpaAuditing configuration.
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
+    /**
+     * Instant when the record was last modified.
+     */
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Using String to perfectly match the 'createdBy' in User.java
-    @CreatedBy
+    /**
+     * Operator identity who inserted the record.
+     */
+    // I decided to keep createdBy/updatedBy as manually-set String fields rather than
+    // relying on @CreatedBy/@LastModifiedBy, which would require an AuditorAware bean.
+    // Our Services inject the operator email explicitly, giving us full control.
     @Column(name = "created_by", updatable = false)
     private String createdBy;
 
-    // Using String to perfectly match the 'updatedBy' in User.java
-    @LastModifiedBy
+    /**
+     * Operator identity who made the last change.
+     */
     @Column(name = "updated_by")
     private String updatedBy;
 
-    // We can't auto-fill this with pure Spring Data JPA natively, 
-    // but I added it here so all tables inherit this column as requested in the UML.
+    /**
+     * Client physical network address origin.
+     */
+    // I placed this field in the superclass so every table in the system inherits
+    // the network traceability column as specified in the UML diagram.
     @Column(name = "origin_ip")
     private String originIp;
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
-
-    public String getOriginIp() {
-        return originIp;
-    }
-
-    public void setOriginIp(String originIp) {
-        this.originIp = originIp;
-    }
 }

@@ -30,13 +30,9 @@ public class SimulationController {
     @PostMapping("/start")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> startSimulation(@Valid @RequestBody SimulationRequest request, Authentication authentication) {
-        try {
-            String operatorEmail = authentication.getName();
-            SimulationResponse response = simulationService.startSimulation(request, operatorEmail);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        String operatorEmail = authentication.getName();
+        SimulationResponse response = simulationService.startSimulation(request, operatorEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -45,15 +41,8 @@ public class SimulationController {
     @PostMapping("/{id}/stop")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> stopSimulation(@PathVariable UUID id) {
-        try {
-            SimulationResponse response = simulationService.stopSimulation(id);
-            return ResponseEntity.ok(response);
-        } catch (IllegalStateException e) {
-            // Return conflict if trying to stop an already stopped simulation
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        SimulationResponse response = simulationService.stopSimulation(id);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -71,13 +60,7 @@ public class SimulationController {
     @PostMapping("/{id}/cancel")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> cancelSimulation(@PathVariable UUID id) {
-        try {
-            SimulationResponse response = simulationService.cancelSimulation(id);
-            return ResponseEntity.ok(response);
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        SimulationResponse response = simulationService.cancelSimulation(id);
+        return ResponseEntity.ok(response);
     }
 }

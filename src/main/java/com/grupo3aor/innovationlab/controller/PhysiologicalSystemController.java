@@ -42,19 +42,13 @@ public class PhysiologicalSystemController {
             Authentication authentication,
             HttpServletRequest httpRequest) {
 
-        try {
-            // I captured the active operator's identity and network origin dynamically 
-            // from the security context to ensure tamper-proof auditing logs.
-            String operatorEmail = authentication.getName();
-            String originIp = httpRequest.getRemoteAddr();
+        // I captured the active operator's identity and network origin dynamically 
+        // from the security context to ensure tamper-proof auditing logs.
+        String operatorEmail = authentication.getName();
+        String originIp = httpRequest.getRemoteAddr();
 
-            PhysiologicalSystemResponse response = systemService.createSystem(request, operatorEmail, originIp);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        } catch (IllegalArgumentException e) {
-            // I caught the business conflict explicitly to return a proper 400 Bad Request status.
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        PhysiologicalSystemResponse response = systemService.createSystem(request, operatorEmail, originIp);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -74,12 +68,8 @@ public class PhysiologicalSystemController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deleteSystem(@PathVariable Long id, Authentication authentication) {
-        try {
-            String operatorEmail = authentication.getName();
-            systemService.deleteSystem(id, operatorEmail);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        String operatorEmail = authentication.getName();
+        systemService.deleteSystem(id, operatorEmail);
+        return ResponseEntity.ok().build();
     }
 }
