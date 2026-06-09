@@ -24,8 +24,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-// I added the SQLDelete interceptor to ensure Soft Delete works perfectly at the database level!
-@SQLDelete(sql = "UPDATE rules SET deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+// I updated this interceptor to use 'active = false' for soft delete,
+// standardizing the naming across all entities (User, PhysiologicalSystem, ClinicalScenario all use 'active').
+@SQLDelete(sql = "UPDATE rules SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 public class Rule extends Auditable {
 
     // =========================================================
@@ -75,12 +76,13 @@ public class Rule extends Auditable {
 
     // =========================================================
     // MY SOFT DELETE
-    // Instead of completely wiping rules from the DB, I just flag them as deleted.
-    // This way we never break historical simulations that used this rule!
+    // Instead of completely wiping rules from the DB, I just flag them as inactive.
+    // Renamed from 'deleted' to 'active' to be consistent with User, PhysiologicalSystem
+    // and ClinicalScenario — all of which use active=true/false for soft delete.
     // =========================================================
     @Column(nullable = false)
     @Builder.Default
-    private boolean deleted = false;
+    private boolean active = true;
 
     // =========================================================
     // IDENTITY (EQUALS & HASHCODE)
