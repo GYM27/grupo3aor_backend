@@ -3,6 +3,7 @@ package com.grupo3aor.innovationlab.domain.entity;
 import com.grupo3aor.innovationlab.domain.enums.Severity;
 import jakarta.persistence.*;
 import lombok.experimental.SuperBuilder;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
