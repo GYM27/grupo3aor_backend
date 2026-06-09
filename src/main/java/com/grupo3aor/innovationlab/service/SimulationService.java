@@ -10,8 +10,10 @@ import com.grupo3aor.innovationlab.repository.SimulationRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.ClinicalScenarioRepository;
 import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,22 +24,18 @@ import java.util.stream.Collectors;
  * Service layer for managing simulations.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class SimulationService {
 
     private final SimulationRepository simulationRepository;
     private final UserRepository userRepository;
     private final ClinicalScenarioRepository scenarioRepository;
 
-    @Autowired
-    public SimulationService(SimulationRepository simulationRepository, UserRepository userRepository, ClinicalScenarioRepository scenarioRepository) {
-        this.simulationRepository = simulationRepository;
-        this.userRepository = userRepository;
-        this.scenarioRepository = scenarioRepository;
-    }
-
     /**
      * Starts a new simulation securely from the user's request.
      */
+    @Transactional
     public SimulationResponse startSimulation(SimulationRequest request, String userEmail) {
         User starter = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
@@ -59,6 +57,7 @@ public class SimulationService {
     /**
      * Ends an ongoing simulation.
      */
+    @Transactional
     public SimulationResponse stopSimulation(UUID simulationId) {
         Simulation sim = simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
@@ -78,6 +77,7 @@ public class SimulationService {
     /**
      * Gets all historical simulations.
      */
+    @Transactional(readOnly = true)
     public List<SimulationResponse> getHistory() {
         return simulationRepository.findAll().stream()
                 .map(this::mapToResponse)
@@ -87,6 +87,7 @@ public class SimulationService {
     /**
      * Cancels an ongoing simulation.
      */
+    @Transactional
     public SimulationResponse cancelSimulation(UUID simulationId) {
         Simulation sim = simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));

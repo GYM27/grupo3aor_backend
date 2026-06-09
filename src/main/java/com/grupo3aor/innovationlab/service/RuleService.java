@@ -9,8 +9,10 @@ import com.grupo3aor.innovationlab.repository.RuleRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.PhysiologicalSystemRepository;
 import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,22 +26,18 @@ import java.util.stream.Collectors;
  * </p>
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class RuleService {
 
     private final RuleRepository ruleRepository;
     private final UserRepository userRepository;
     private final PhysiologicalSystemRepository systemRepository;
 
-    @Autowired
-    public RuleService(RuleRepository ruleRepository, UserRepository userRepository, PhysiologicalSystemRepository systemRepository) {
-        this.ruleRepository = ruleRepository;
-        this.userRepository = userRepository;
-        this.systemRepository = systemRepository;
-    }
-
     /**
      * Creates a new rule, injecting the user securely based on their session email.
      */
+    @Transactional
     public RuleResponse createRule(RuleRequest request, String userEmail) {
         // Fetch the user to ensure they actually exist before linking them
         User creator = userRepository.findByEmail(userEmail)
@@ -62,6 +60,7 @@ public class RuleService {
     /**
      * Lists all active rules (the ones that are not deleted).
      */
+    @Transactional(readOnly = true)
     public List<RuleResponse> getAllActiveRules() {
         return ruleRepository.findAllByDeletedFalse().stream()
                 .map(this::mapToResponse)
@@ -72,6 +71,7 @@ public class RuleService {
      * Soft-deletes a rule by ID. 
      * Because I added @SQLDelete in the Rule entity, this will just set deleted = true!
      */
+    @Transactional
     public void deactivateRule(UUID ruleId) {
         if (!ruleRepository.existsById(ruleId)) {
             throw new ResourceNotFoundException("Rule not found with ID: " + ruleId);
@@ -82,6 +82,7 @@ public class RuleService {
     /**
      * Updates an existing rule.
      */
+    @Transactional
     public RuleResponse updateRule(UUID ruleId, RuleRequest request, String userEmail) {
         Rule rule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
@@ -92,6 +93,10 @@ public class RuleService {
         rule.setSystem(system);
         rule.setExpressionDsl(request.getExpressionDsl());
         rule.setSeverity(request.getSeverity());
+        // Fix: populate the audit field that was being silently ignored
+        rule.setUpdatedBy(userEmail);
+
+        log.info("[AUDIT] Action: RULE_UPDATED | Target ID: {} | Operator: {}", ruleId, userEmail);
 
         Rule saved = ruleRepository.save(rule);
         return mapToResponse(saved);
