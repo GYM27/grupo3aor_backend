@@ -63,7 +63,7 @@ public class RuleService {
      * Lists all active rules (the ones that are not deleted).
      */
     public List<RuleResponse> getAllActiveRules() {
-        return ruleRepository.findAllByDeletedFalse().stream()
+        return ruleRepository.findAllByActiveTrue().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

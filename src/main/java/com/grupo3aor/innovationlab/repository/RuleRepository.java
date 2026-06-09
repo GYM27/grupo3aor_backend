@@ -17,9 +17,11 @@ import java.util.UUID;
 public interface RuleRepository extends JpaRepository<Rule, UUID> {
 
     /**
-     * I created this to fetch all active rules, completely ignoring the deleted ones!
-     * @return List of non-deleted rules
+     * Fetches all active rules, ignoring soft-deleted ones.
+     * Renamed from findAllByDeletedFalse to findAllByActiveTrue to be consistent
+     * with UserRepository, PhysiologicalSystemRepository and ClinicalScenarioRepository.
+     * @return List of active (non-deleted) rules
      */
-    List<Rule> findAllByDeletedFalse();
+    List<Rule> findAllByActiveTrue();
 
 }
