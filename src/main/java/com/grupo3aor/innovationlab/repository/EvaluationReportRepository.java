@@ -14,9 +14,10 @@ public interface EvaluationReportRepository extends JpaRepository<EvaluationRepo
 
     /**
      * Finds the evaluation report associated with a specific simulation.
+     * Uses Spring Data's nested property traversal (simulation.id) through the @ManyToOne relation.
      *
      * @param simulationId the unique identifier of the simulation
      * @return an Optional containing the evaluation report if found
      */
-    Optional<EvaluationReport> findBySimulationId(UUID simulationId);
-}
+    Optional<EvaluationReport> findBySimulation_Id(UUID simulationId);
+}

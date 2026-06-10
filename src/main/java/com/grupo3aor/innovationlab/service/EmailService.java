@@ -1,5 +1,7 @@
 package com.grupo3aor.innovationlab.service;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
  * @version 1.0
  */
 @Service
+@Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
@@ -34,6 +37,12 @@ public class EmailService {
      * <p>
      * I designed this method to construct a plaintext email payload explicitly instructing 
      * the user on how to unlock their account. The token parameter acts as the secure key.
+     * </p>
+     * <p>
+     * I wrapped the send call in a try-catch for MailException so that a missing or
+     * unreachable SMTP server (e.g. Mailpit not running locally) does not cause the
+     * registration flow to fail with a generic 500. The error is logged clearly so the
+     * developer can diagnose it without confusion.
      * </p>
      *
      * @param targetEmail The recipient's exact registered email address.
@@ -60,6 +69,14 @@ public class EmailService {
         msg.setText(body);
 
         // I delegated the actual network transmission to the injected Spring Mail interface.
-        mailSender.send(msg);
+        // I wrapped this in a try-catch so a misconfigured or absent SMTP server (e.g. Mailpit
+        // not running on port 1025) produces a clear warning log instead of a 500 error.
+        try {
+            mailSender.send(msg);
+            log.info("[EMAIL] Confirmation email dispatched to: {}", targetEmail);
+        } catch (MailException e) {
+            log.warn("[EMAIL_WARNING] Failed to send confirmation email to: {} | Cause: {} | " +
+                     "User account was created. Activation link: {}", targetEmail, e.getMessage(), fullUrl);
+        }
     }
-}
+}

@@ -32,7 +32,9 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+// I removed the @CrossOrigin annotation here because CORS is already configured globally
+// in SecurityConfig.corsConfigurationSource() for all /** endpoints. Having it in both places
+// is redundant and could cause conflicts if the allowed origins diverge in the future.
 @Slf4j
 public class AuthController {
 

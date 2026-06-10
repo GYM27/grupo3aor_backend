@@ -8,13 +8,22 @@ import java.time.LocalDateTime;
 /**
  * Component responsible for clean object-to-object translation between
  * JPA database entities and data transfer contracts.
+ * <p>
+ * I updated this mapper to work with the new @ManyToOne FK relations in Alert,
+ * PhysiologicalReading and EvaluationReport. The toEntity methods now receive the
+ * resolved Simulation (and Rule) JPA entity so Hibernate can properly set the FK.
+ * The toDto methods extract the UUID from the relation for a stable API contract.
+ * </p>
  */
 @Component
 public class SimulationMapper {
 
-    public PhysiologicalReading toEntity(PhysiologicalReadingDTO dto) {
+    // I split toEntity into two variants: one for reads (no simulation needed)
+    // and one for writes (simulation entity required to set the FK).
+
+    public PhysiologicalReading toEntity(PhysiologicalReadingDTO dto, Simulation simulation) {
         PhysiologicalReading entity = new PhysiologicalReading();
-        entity.setSimulationId(dto.getSimulationId());
+        entity.setSimulation(simulation);
         entity.setHandle(dto.getHandle());
         entity.setUnit(dto.getUnit());
         entity.setValue(dto.getValue());
@@ -25,7 +34,8 @@ public class SimulationMapper {
     public PhysiologicalReadingDTO toDto(PhysiologicalReading entity) {
         PhysiologicalReadingDTO dto = new PhysiologicalReadingDTO();
         dto.setId(entity.getId());
-        dto.setSimulationId(entity.getSimulationId());
+        // I extract the UUID from the FK relation so the API response stays consistent
+        dto.setSimulationId(entity.getSimulation() != null ? entity.getSimulation().getId() : null);
         dto.setHandle(entity.getHandle());
         dto.setUnit(entity.getUnit());
         dto.setValue(entity.getValue());
@@ -33,10 +43,10 @@ public class SimulationMapper {
         return dto;
     }
 
-    public Alert toEntity(AlertDTO dto) {
+    public Alert toEntity(AlertDTO dto, Simulation simulation, Rule rule) {
         Alert entity = new Alert();
-        entity.setSimulationId(dto.getSimulationId());
-        entity.setRuleId(dto.getRuleId());
+        entity.setSimulation(simulation);
+        entity.setRule(rule);
         entity.setTimestamp(dto.getTimestamp() != null ? dto.getTimestamp() : LocalDateTime.now());
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : AlertStatus.ATIVO);
         entity.setValueAtTrigger(dto.getValueAtTrigger());
@@ -46,17 +56,18 @@ public class SimulationMapper {
     public AlertDTO toDto(Alert entity) {
         AlertDTO dto = new AlertDTO();
         dto.setId(entity.getId());
-        dto.setSimulationId(entity.getSimulationId());
-        dto.setRuleId(entity.getRuleId());
+        // I extract the UUIDs from the FK relations so the API response stays consistent
+        dto.setSimulationId(entity.getSimulation() != null ? entity.getSimulation().getId() : null);
+        dto.setRuleId(entity.getRule() != null ? entity.getRule().getId() : null);
         dto.setTimestamp(entity.getTimestamp());
         dto.setStatus(entity.getStatus());
         dto.setValueAtTrigger(entity.getValueAtTrigger());
         return dto;
     }
 
-    public EvaluationReport toEntity(EvaluationReportDTO dto) {
+    public EvaluationReport toEntity(EvaluationReportDTO dto, Simulation simulation) {
         EvaluationReport entity = new EvaluationReport();
-        entity.setSimulationId(dto.getSimulationId());
+        entity.setSimulation(simulation);
         entity.setIntervaloTemporal(dto.getIntervaloTemporal());
         entity.setRationaleText(dto.getRationaleText());
         entity.setPdfContent(dto.getPdfContent() != null ? dto.getPdfContent() : new byte[0]);
@@ -66,10 +77,11 @@ public class SimulationMapper {
     public EvaluationReportDTO toDto(EvaluationReport entity) {
         EvaluationReportDTO dto = new EvaluationReportDTO();
         dto.setId(entity.getId());
-        dto.setSimulationId(entity.getSimulationId());
+        // I extract the UUID from the FK relation so the API response stays consistent
+        dto.setSimulationId(entity.getSimulation() != null ? entity.getSimulation().getId() : null);
         dto.setIntervaloTemporal(entity.getIntervaloTemporal());
         dto.setRationaleText(entity.getRationaleText());
         dto.setPdfContent(entity.getPdfContent());
         return dto;
     }
-}
+}
