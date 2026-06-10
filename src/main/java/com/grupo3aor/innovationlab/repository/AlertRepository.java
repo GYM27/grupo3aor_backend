@@ -14,9 +14,10 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
 
     /**
      * Retrieves all alerts associated with a specific simulation session.
+     * Uses Spring Data's nested property traversal (simulation.id) through the @ManyToOne relation.
      *
      * @param simulationId the unique identifier of the simulation
      * @return a list of alerts triggered during the simulation
      */
-    List<Alert> findBySimulationId(UUID simulationId);
-}
+    List<Alert> findBySimulation_Id(UUID simulationId);
+}
