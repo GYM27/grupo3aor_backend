@@ -1,6 +1,9 @@
 package com.grupo3aor.innovationlab.repository;
 
 import com.grupo3aor.innovationlab.domain.entity.Alert;
+import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
+import com.grupo3aor.innovationlab.domain.entity.Simulation;
+import com.grupo3aor.innovationlab.domain.entity.Rule;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,4 +23,8 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
      * @return a list of alerts triggered during the simulation
      */
     List<Alert> findBySimulation_Id(UUID simulationId);
-}
+
+    // I added this query to prevent alert spam. It checks if there's already an active alert for the same simulation and rule.
+    boolean existsBySimulationAndRuleAndStatus(Simulation simulation, Rule rule, AlertStatus status);
+    
+}

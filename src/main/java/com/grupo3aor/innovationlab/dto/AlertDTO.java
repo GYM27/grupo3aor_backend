@@ -1,6 +1,6 @@
 package com.grupo3aor.innovationlab.dto;
 
-import com.grupo3aor.innovationlab.domain.entity.AlertStatus;
+import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -28,4 +28,4 @@ public class AlertDTO {
 
     @NotNull(message = "The reading value recorded at trigger time is required")
     private BigDecimal valueAtTrigger;
-}
+}

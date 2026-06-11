@@ -1,6 +1,7 @@
 package com.grupo3aor.innovationlab.mapper;
 
 import com.grupo3aor.innovationlab.domain.entity.*;
+import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.dto.*;
 import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
@@ -84,4 +85,4 @@ public class SimulationMapper {
         dto.setPdfContent(entity.getPdfContent());
         return dto;
     }
-}
+}

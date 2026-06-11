@@ -1,7 +1,7 @@
 package com.grupo3aor.innovationlab.service;
 
 import com.grupo3aor.innovationlab.domain.entity.Alert;
-import com.grupo3aor.innovationlab.domain.entity.AlertStatus;
+import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.domain.entity.Rule;
 import com.grupo3aor.innovationlab.domain.entity.Simulation;
 import com.grupo3aor.innovationlab.dto.AlertDTO;
@@ -68,4 +68,4 @@ public class AlertService {
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
-}
+}

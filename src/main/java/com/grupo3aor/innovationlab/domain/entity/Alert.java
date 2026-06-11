@@ -9,6 +9,8 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
+import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

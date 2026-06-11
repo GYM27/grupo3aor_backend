@@ -1,6 +1,6 @@
 package com.grupo3aor.innovationlab.controller;
 
-import com.grupo3aor.innovationlab.domain.entity.AlertStatus;
+import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.dto.AlertDTO;
 import com.grupo3aor.innovationlab.service.AlertService;
 import jakarta.servlet.http.HttpServletRequest;

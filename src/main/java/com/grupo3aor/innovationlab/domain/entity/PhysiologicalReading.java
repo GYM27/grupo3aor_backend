@@ -49,7 +49,7 @@ public class PhysiologicalReading extends Auditable {
     @Column(name = "unit", nullable = false)
     private String unit;
 
-    @Column(name = "value", nullable = false, precision = 10, scale = 2)
+    @Column(name = "\"value\"", nullable = false, precision = 10, scale = 2)
     private BigDecimal value;
 
     @Column(name = "timestamp", nullable = false)
