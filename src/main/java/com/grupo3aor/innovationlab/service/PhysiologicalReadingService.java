@@ -7,6 +7,7 @@ import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.mapper.SimulationMapper;
 import com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -19,12 +20,18 @@ public class PhysiologicalReadingService {
     private final PhysiologicalReadingRepository repository;
     private final SimulationMapper mapper;
     private final SimulationRepository simulationRepository;
+    private final RuleEvaluatorService ruleEvaluatorService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public PhysiologicalReadingService(PhysiologicalReadingRepository repository, SimulationMapper mapper,
-                                       SimulationRepository simulationRepository) {
+                                       SimulationRepository simulationRepository,
+                                       RuleEvaluatorService ruleEvaluatorService,
+                                       SimpMessagingTemplate messagingTemplate) {
         this.repository = repository;
         this.mapper = mapper;
         this.simulationRepository = simulationRepository;
+        this.ruleEvaluatorService = ruleEvaluatorService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -39,8 +46,20 @@ public class PhysiologicalReadingService {
         reading.setCreatedBy(userEmail);
         reading.setUpdatedBy(userEmail);
         reading.setOriginIp(ipAddress);
+        // Save to DB
+        PhysiologicalReading savedReading = repository.save(reading);
+        // Convert to DTO
+        PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
+        // Send to WebSocket
+        messagingTemplate.convertAndSend("/topic/readings", savedDto);
 
-        return mapper.toDto(repository.save(reading));
+        try {
+            ruleEvaluatorService.evaluateReading(savedReading);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return savedDto;
     }
 
     @Transactional(readOnly = true)
@@ -49,4 +68,4 @@ public class PhysiologicalReadingService {
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
-}
+}

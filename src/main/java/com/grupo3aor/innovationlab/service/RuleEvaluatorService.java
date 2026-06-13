@@ -13,6 +13,7 @@ import com.grupo3aor.innovationlab.dto.RuleCondition;
 import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,7 @@ public class RuleEvaluatorService {
     private final AlertRepository alertRepository;
     private final RuleRepository ruleRepository;
     private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
@@ -59,7 +61,9 @@ public class RuleEvaluatorService {
                             .build();
                         
                         alertRepository.save(newAlert);
-                        // TODO in the future: I need to broadcast this alert via WebSocket so the Frontend sees it immediately!
+                        
+                        // NOVO: Emite o Alerta Crítico para o Dashboard imediatamente!
+                        messagingTemplate.convertAndSend("/topic/alerts", newAlert);
                     }
                 }
             }

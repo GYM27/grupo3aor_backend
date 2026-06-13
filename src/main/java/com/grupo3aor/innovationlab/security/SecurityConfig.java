@@ -49,7 +49,7 @@ public class SecurityConfig {
             // Disabled for the H2 console and Authentication routes (/api/auth/**), 
             // otherwise Spring would block POST login requests coming from React.
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/h2-console/**", "/api/auth/**")
+                .ignoringRequestMatchers("/h2-console/**", "/api/**")
             )
 
             // Configure X-Frame-Options to allow H2 Console to use iframes internally.
@@ -62,6 +62,7 @@ public class SecurityConfig {
                 // PUBLIC URLs (anyone can access without login)
                 .requestMatchers("/h2-console/**").permitAll()     // Free access to the H2 console
                 .requestMatchers("/api/auth/**").permitAll()        // Free access to Login and Registration endpoints
+                .requestMatchers("/api/ws/**").permitAll()          // I explicitly permitted access to our WebSocket handshake to prevent Spring Security from throwing 500 errors.
                 .requestMatchers("/actuator/health").permitAll()    // Free access to our Health check endpoint for monitoring
 
                 // ALL other URLs not mentioned above will strictly require authentication!

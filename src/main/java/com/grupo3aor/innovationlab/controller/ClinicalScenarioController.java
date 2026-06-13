@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -29,6 +31,8 @@ import java.util.List;
 public class ClinicalScenarioController {
 
     private final ClinicalScenarioService scenarioService;
+    private final ObjectMapper objectMapper;
+
 
     /**
      * Protected endpoint generating new scenario entries.
@@ -46,6 +50,34 @@ public class ClinicalScenarioController {
         ClinicalScenarioResponse response = scenarioService.createScenario(request, operatorEmail, originIp);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+        /**
+     * Endpoint que recebe um ficheiro JSON e transforma-o num Cenário na BD.
+     */
+    @PostMapping("/upload")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> uploadScenario(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
+
+        try {
+            // 1. A Magia do Jackson: Lê o input stream do ficheiro para o DTO
+            ClinicalScenarioRequest request = objectMapper.readValue(file.getInputStream(), ClinicalScenarioRequest.class);
+
+            // 2. Usa a lógica existente para criar na BD de forma segura
+            String operatorEmail = authentication.getName();
+            String originIp = httpRequest.getRemoteAddr();
+            ClinicalScenarioResponse response = scenarioService.createScenario(request, operatorEmail, originIp);
+
+            // 3. Retorna o Objeto criado (que já tem o ID da base de dados!)
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erro ao processar o JSON: " + e.getMessage());
+        }
+    }
+
 
     /**
      * Publicly authenticated endpoint serving the list of available scenarios.
