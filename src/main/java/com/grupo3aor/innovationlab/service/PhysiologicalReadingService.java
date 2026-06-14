@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Service
 public class PhysiologicalReadingService {
@@ -19,12 +21,14 @@ public class PhysiologicalReadingService {
     private final PhysiologicalReadingRepository repository;
     private final SimulationMapper mapper;
     private final SimulationRepository simulationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public PhysiologicalReadingService(PhysiologicalReadingRepository repository, SimulationMapper mapper,
-                                       SimulationRepository simulationRepository) {
+                                       SimulationRepository simulationRepository, SimpMessagingTemplate messagingTemplate) {
         this.repository = repository;
         this.mapper = mapper;
         this.simulationRepository = simulationRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional
@@ -40,7 +44,24 @@ public class PhysiologicalReadingService {
         reading.setUpdatedBy(userEmail);
         reading.setOriginIp(ipAddress);
 
-        return mapper.toDto(repository.save(reading));
+        PhysiologicalReadingDTO savedDto = mapper.toDto(repository.save(reading));
+        
+        // Push the new reading to the WebSocket topic for this specific simulation
+        messagingTemplate.convertAndSend("/topic/simulations/" + dto.getSimulationId() + "/readings", savedDto);
+        
+        return savedDto;
+    }
+
+    @Transactional
+    public List<PhysiologicalReadingDTO> createReadingBatch(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
+        List<PhysiologicalReadingDTO> savedDtos = new ArrayList<>();
+        
+        for (PhysiologicalReadingDTO dto : dtos) {
+            // Re-using the single create logic to ensure all relations and WebSocket pushes are triggered
+            savedDtos.add(createReading(dto, userEmail, ipAddress));
+        }
+        
+        return savedDtos;
     }
 
     @Transactional(readOnly = true)

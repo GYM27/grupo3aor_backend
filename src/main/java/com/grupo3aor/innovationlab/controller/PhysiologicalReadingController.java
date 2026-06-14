@@ -30,6 +30,22 @@ public class PhysiologicalReadingController {
         return ResponseEntity.ok(service.createReading(dto, authentication.getName(), request.getRemoteAddr()));
     }
 
+    @PostMapping("/stream")
+    public ResponseEntity<PhysiologicalReadingDTO> postReadingStream(
+            @Valid @RequestBody PhysiologicalReadingDTO dto,
+            Authentication authentication,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(service.createReading(dto, authentication.getName(), request.getRemoteAddr()));
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<PhysiologicalReadingDTO>> postReadingBatch(
+            @Valid @RequestBody List<PhysiologicalReadingDTO> dtos,
+            Authentication authentication,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(service.createReadingBatch(dtos, authentication.getName(), request.getRemoteAddr()));
+    }
+
     @GetMapping("/simulation/{simulationId}")
     public ResponseEntity<List<PhysiologicalReadingDTO>> getBySimulation(@PathVariable UUID simulationId) {
         return ResponseEntity.ok(service.getReadingsBySimulation(simulationId));

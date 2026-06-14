@@ -63,6 +63,7 @@ public class SecurityConfig {
                 .requestMatchers("/h2-console/**").permitAll()     // Free access to the H2 console
                 .requestMatchers("/api/auth/**").permitAll()        // Free access to Login and Registration endpoints
                 .requestMatchers("/actuator/health").permitAll()    // Free access to our Health check endpoint for monitoring
+                .requestMatchers("/ws/**").permitAll()              // Free access to WebSockets
 
                 // ALL other URLs not mentioned above will strictly require authentication!
                 .anyRequest().authenticated()
