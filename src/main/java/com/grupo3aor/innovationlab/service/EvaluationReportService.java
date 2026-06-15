@@ -38,7 +38,38 @@ public class EvaluationReportService {
         report.setUpdatedBy(userEmail);
         report.setOriginIp(ipAddress);
 
+        // Generate the PDF content dynamically
+        byte[] pdfBytes = generatePdfBytes(report, simulation);
+        report.setPdfContent(pdfBytes);
+
         return mapper.toDto(repository.save(report));
+    }
+
+    private byte[] generatePdfBytes(EvaluationReport report, Simulation simulation) {
+        try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+            com.lowagie.text.Document document = new com.lowagie.text.Document();
+            com.lowagie.text.pdf.PdfWriter.getInstance(document, baos);
+            document.open();
+            
+            com.lowagie.text.Font titleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 18);
+            com.lowagie.text.Font subtitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12);
+            com.lowagie.text.Font textFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10);
+            
+            document.add(new com.lowagie.text.Paragraph("VitalSim - Relatorio de Avaliacao", titleFont));
+            document.add(new com.lowagie.text.Paragraph("Simulacao: " + simulation.getId(), textFont));
+            document.add(new com.lowagie.text.Paragraph("Data: " + java.time.LocalDateTime.now(), textFont));
+            document.add(new com.lowagie.text.Paragraph("Intervalo Temporal: " + report.getIntervaloTemporal(), textFont));
+            document.add(new com.lowagie.text.Paragraph("\n"));
+            
+            document.add(new com.lowagie.text.Paragraph("Resumo e Justificacao Analitica", subtitleFont));
+            document.add(new com.lowagie.text.Paragraph(report.getRationaleText(), textFont));
+            
+            // Fechar o documento finaliza a escrita no ByteArrayOutputStream
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao gerar o documento PDF do Relatorio", e);
+        }
     }
 
     @Transactional(readOnly = true)
