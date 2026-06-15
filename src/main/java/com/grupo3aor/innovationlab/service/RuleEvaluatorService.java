@@ -41,6 +41,9 @@ public class RuleEvaluatorService {
                         break;
                     case "==": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) == 0;
                         break;
+                    default:
+                        // No valid operator matched, do nothing
+                        break;
                 }
 
                 // If the rule triggered, I check if an active alert ALREADY EXISTS to avoid spamming the database
