@@ -31,6 +31,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByActivationToken(String token);
     
     /**
+     * Locates a user record based on a password reset token.
+     * * @param token Cryptographically safe reset token string.
+     * @return An Optional entity wrapper.
+     */
+    Optional<User> findByResetPasswordToken(String token);
+    
+    /**
      * Gathers all operational user records while filtering out logically removed entries.
      * * @return Collection of active system users.
      */

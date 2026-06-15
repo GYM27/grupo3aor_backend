@@ -46,8 +46,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             // CSRF (Cross-Site Request Forgery) protection
-            // Disabled for the H2 console and Authentication routes (/api/auth/**), 
-            // otherwise Spring would block POST login requests coming from React.
+            // Disabled for the H2 console and all API routes (/api/**), 
+            // since REST APIs (and external medical devices sending data) do not use browser CSRF tokens.
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers("/h2-console/**", "/api/**")
             )
@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()        // Free access to Login and Registration endpoints
                 .requestMatchers("/api/ws/**").permitAll()          // I explicitly permitted access to our WebSocket handshake to prevent Spring Security from throwing 500 errors.
                 .requestMatchers("/actuator/health").permitAll()    // Free access to our Health check endpoint for monitoring
+                .requestMatchers("/ws/**").permitAll()              // Free access to WebSockets
 
                 // ALL other URLs not mentioned above will strictly require authentication!
                 .anyRequest().authenticated()
@@ -102,8 +103,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allows requests from the frontend origin (Vite default port)
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        // Allows requests from the frontend origin (Vite default port and fallback)
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:5174"));
         // Allows essential HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allows sending headers in the request
