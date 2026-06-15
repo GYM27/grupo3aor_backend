@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -192,5 +193,73 @@ public class AuthService {
                     request.getEmail(), clientIp);
             throw new BadCredentialsException("Invalid credentials");
         }
+    }
+
+    /**
+     * Initiates the password recovery workflow by generating a secure token.
+     * <p>
+     * For security reasons against email enumeration, this method will simply log a warning
+     * and exit silently if the email does not exist, pretending it succeeded.
+     * </p>
+     *
+     * @param email The target email address for password recovery.
+     */
+    @Transactional
+    public void forgotPassword(String email) {
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isEmpty()) {
+            // We do not throw an exception here to prevent attackers from guessing registered emails.
+            log.warn("[SECURITY_ALERT] Action: FORGOT_PASSWORD_ATTEMPT | Target Email: {} | Reason: EMAIL_NOT_FOUND", email);
+            return;
+        }
+
+        User user = userOptional.get();
+
+        String token = UUID.randomUUID().toString();
+        user.setResetPasswordToken(token);
+        // Token expires in 1 hour
+        user.setResetPasswordExpiresAt(LocalDateTime.now().plusHours(1));
+        
+        user.setUpdatedBy("PASSWORD_RECOVERY_FLOW");
+        userRepository.save(user);
+
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), token);
+        log.info("[AUDIT] Action: PASSWORD_RECOVERY_REQUESTED | Target Email: {}", email);
+    }
+
+    /**
+     * Resets the user's password using the secure token provided via email.
+     *
+     * @param token The secure reset token.
+     * @param newPassword The new password in plain text.
+     * @throws IllegalArgumentException If the token is invalid, expired, or matches the old password.
+     */
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        Optional<User> userOptional = userRepository.findByResetPasswordToken(token);
+
+        if (userOptional.isEmpty()) {
+            throw new IllegalArgumentException("Invalid or missing password reset token.");
+        }
+
+        User user = userOptional.get();
+
+        if (user.getResetPasswordExpiresAt() == null || user.getResetPasswordExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Password reset token has expired.");
+        }
+
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("New password cannot be the same as the current password.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setResetPasswordToken(null);
+        user.setResetPasswordExpiresAt(null);
+        
+        user.setUpdatedBy(user.getEmail());
+        userRepository.save(user);
+        
+        log.info("[AUDIT] Action: PASSWORD_RESET_SUCCESSFUL | Target Email: {}", user.getEmail());
     }
 }

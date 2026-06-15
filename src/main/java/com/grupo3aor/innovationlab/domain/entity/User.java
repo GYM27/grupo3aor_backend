@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDateTime;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
@@ -112,6 +113,18 @@ public class User extends Auditable {
      */
     @Column(name = "activation_token")
     private String activationToken; 
+
+    /**
+     * Token used to reset the user's password securely.
+     */
+    @Column(name = "reset_password_token")
+    private String resetPasswordToken;
+
+    /**
+     * Expiration timestamp for the reset password token.
+     */
+    @Column(name = "reset_password_expires_at")
+    private LocalDateTime resetPasswordExpiresAt;
 
     /**
      * Comparative evaluation relying solely on object primary identifiers.

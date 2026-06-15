@@ -4,6 +4,8 @@ import com.grupo3aor.innovationlab.domain.entity.User;
 import com.grupo3aor.innovationlab.dto.LoginRequest;
 import com.grupo3aor.innovationlab.dto.RegisterRequest;
 import com.grupo3aor.innovationlab.dto.UserResponse;
+import com.grupo3aor.innovationlab.dto.ForgotPasswordRequest;
+import com.grupo3aor.innovationlab.dto.ResetPasswordRequest;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -111,6 +113,40 @@ public class AuthController {
             return ResponseEntity.ok(Map.of("message", e.getMessage(), "alreadyActivated", true));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Endpoint to request a password reset email.
+     * * @param request Validated payload containing the user's email.
+     * @return Success message regardless of email existence to prevent enumeration.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            authService.forgotPassword(request.getEmail());
+            return ResponseEntity.ok(Map.of("message", "If that email is registered, you will receive a password reset link shortly."));
+        } catch (Exception e) {
+            log.error("[SECURITY_LOG] Action: FORGOT_PASSWORD_ERROR | Error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "An error occurred while processing your request."));
+        }
+    }
+
+    /**
+     * Endpoint to reset a password using a secure token.
+     * * @param request Validated payload containing the token and new password.
+     * @return Success message if the reset was successful.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            authService.resetPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Password has been successfully reset. You can now login."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("[SECURITY_LOG] Action: RESET_PASSWORD_ERROR | Error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "An error occurred while resetting your password."));
         }
     }
 }
