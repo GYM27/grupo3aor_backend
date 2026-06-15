@@ -46,10 +46,10 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             // CSRF (Cross-Site Request Forgery) protection
-            // Disabled for the H2 console and Authentication routes (/api/auth/**), 
-            // otherwise Spring would block POST login requests coming from React.
+            // Disabled for the H2 console and all API routes (/api/**), 
+            // since REST APIs (and external medical devices sending data) do not use browser CSRF tokens.
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/h2-console/**", "/api/auth/**")
+                .ignoringRequestMatchers("/h2-console/**", "/api/**")
             )
 
             // Configure X-Frame-Options to allow H2 Console to use iframes internally.
@@ -102,8 +102,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allows requests from the frontend origin (Vite default port)
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        // Allows requests from the frontend origin (Vite default port and fallback)
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:5174"));
         // Allows essential HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allows sending headers in the request

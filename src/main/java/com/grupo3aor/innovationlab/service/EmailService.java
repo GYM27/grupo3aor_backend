@@ -53,7 +53,7 @@ public class EmailService {
         
         // I hardcoded the local development domain here temporarily. 
         // In the future, I will extract this to the application.properties to support environment-specific routing.
-        String fullUrl = "http://localhost:5173/ativar?token=" + token;
+        String fullUrl = "http://localhost:5174/ativar?token=" + token;
 
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(targetEmail);
