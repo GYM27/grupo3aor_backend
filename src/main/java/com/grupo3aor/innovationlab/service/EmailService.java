@@ -79,4 +79,43 @@ public class EmailService {
                      "User account was created. Activation link: {}", targetEmail, e.getMessage(), fullUrl);
         }
     }
+
+    /**
+     * Dispatches a structured password reset email containing a secure token link.
+     * <p>
+     * I designed this method to construct a plaintext email payload explicitly instructing
+     * the user on how to reset their password safely.
+     * </p>
+     *
+     * @param targetEmail The recipient's exact registered email address.
+     * @param firstName The recipient's first name for personalization.
+     * @param token The cryptographically generated reset token.
+     */
+    public void sendPasswordResetEmail(String targetEmail, String firstName, String token) {
+        
+        // I hardcoded the local development domain here temporarily.
+        // In the future, I will extract this to the application.properties to support environment-specific routing.
+        String fullUrl = "http://localhost:5173/reset-password?token=" + token;
+
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(targetEmail);
+        msg.setSubject("Innovation Lab - Password Reset Request");
+
+        String body = "Hello " + firstName + ",\n\n" +
+                      "We received a request to reset your password. " + 
+                      "Please click the link below to set a new password: " + 
+                      "\n\n" + fullUrl + "\n\n" +
+                      "If you did not request a password reset, you can safely ignore this email.\n" +
+                      "Best regards,\nThe Innovation Lab Team.";
+
+        msg.setText(body);
+
+        try {
+            mailSender.send(msg);
+            log.info("[EMAIL] Password reset email dispatched to: {}", targetEmail);
+        } catch (MailException e) {
+            log.warn("[EMAIL_WARNING] Failed to send password reset email to: {} | Cause: {} | " +
+                     "Reset link: {}", targetEmail, e.getMessage(), fullUrl);
+        }
+    }
 }
