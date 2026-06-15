@@ -39,9 +39,8 @@ public class ClinicalScenarioService {
     @Transactional
     public ClinicalScenarioResponse createScenario(ClinicalScenarioRequest request, String operatorEmail, String originIp) {
         if (repository.findByName(request.getName()).isPresent()) {
-            log.warn("[BUSINESS_VALIDATION] Action: CREATE_SCENARIO_FAILED | Reason: NAME_ALREADY_EXISTS | Target: {} | Operator: {}", 
-                     request.getName(), operatorEmail);
-            throw new IllegalArgumentException("A clinical scenario with this name already exists.");
+            log.warn("[BUSINESS_VALIDATION] Action: CREATE_SCENARIO_EXISTS | Reason: Returning existing scenario | Target: {}", request.getName());
+            return mapToResponse(repository.findByName(request.getName()).get());
         }
 
         // I transferred the verified properties into a new physical representation,
