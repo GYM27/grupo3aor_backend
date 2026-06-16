@@ -62,6 +62,13 @@ public class ClinicalScenario extends Auditable {
     @Builder.Default
     private boolean active = true;
 
+    /**
+     * Array de leituras fisiológicas em formato JSON para reprodução pelo motor.
+     */
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String metricsPayload;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

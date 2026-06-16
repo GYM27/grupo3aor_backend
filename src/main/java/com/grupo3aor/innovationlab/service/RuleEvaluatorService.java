@@ -30,12 +30,12 @@ public class RuleEvaluatorService {
         for (Rule rule : ruleRepository.findAllByActiveTrue()) {
             RuleCondition ruleCondition = objectMapper.readValue(rule.getExpressionDsl(), RuleCondition.class);
             
-            // I first verify if the rule's metric matches the reading's handle (e.g. "HEART_RATE")
+            // We must first verify if the rule's metric matches the reading's handle (e.g. "HEART_RATE")
             if (ruleCondition.getMetric().equals(reading.getHandle())) {
                 
                 boolean isTriggered = false;
 
-                // Then I dynamically evaluate the threshold condition using a switch statement
+                // Now we dynamically evaluate the threshold condition using a switch statement
                 switch (ruleCondition.getOperator()) {
                     case ">": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) > 0;
                         break;
@@ -48,7 +48,7 @@ public class RuleEvaluatorService {
                         break;
                 }
 
-                // If the rule triggered, I check if an active alert ALREADY EXISTS to avoid spamming the database
+                // If the rule triggered, let's check if an active alert ALREADY EXISTS to avoid spamming the database
                 if (isTriggered) {
                     boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
                         reading.getSimulation(), rule, AlertStatus.ATIVO
@@ -64,9 +64,21 @@ public class RuleEvaluatorService {
                             .build();
                         
                         alertRepository.save(newAlert);
-                        
-                        // NOVO: Emite o Alerta Crítico para o Dashboard imediatamente!
-                        messagingTemplate.convertAndSend("/topic/alerts", newAlert);
+
+                        // Publish to the simulation-specific topic so the Dashboard receives it.
+                        // We use a safe Map instead of serializing the JPA entity directly
+                        // to avoid LazyInitializationException on LAZY relations.
+                        String alertTopic = "/topic/simulations/" + reading.getSimulation().getId() + "/alerts";
+                        java.util.Map<String, Object> alertPayload = java.util.Map.of(
+                            "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
+                            "simulationId",   reading.getSimulation().getId().toString(),
+                            "severity",       rule.getSeverity().name(),
+                            "systemName",     rule.getSystem() != null ? rule.getSystem().getSystemName() : "Unknown",
+                            "valueAtTrigger", reading.getValue(),
+                            "timestamp",      reading.getTimestamp().toString(),
+                            "expressionDsl",  rule.getExpressionDsl() != null ? rule.getExpressionDsl() : ""
+                        );
+                        messagingTemplate.convertAndSend(alertTopic, alertPayload);
                     }
                 }
             }

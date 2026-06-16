@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * REST controller tracking the operational simulations.
+ * REST controller responsible for tracking and managing the operational simulations.
  */
 @RestController
 @RequestMapping("/api/simulations")
@@ -52,6 +52,26 @@ public class SimulationController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SimulationResponse>> getHistory() {
         return ResponseEntity.ok(simulationService.getHistory());
+    }
+
+    /**
+     * Pauses an ongoing simulation.
+     */
+    @PostMapping("/{id}/pause")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> pauseSimulation(@PathVariable UUID id) {
+        SimulationResponse response = simulationService.pauseSimulation(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Resumes a paused simulation.
+     */
+    @PostMapping("/{id}/resume")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> resumeSimulation(@PathVariable UUID id) {
+        SimulationResponse response = simulationService.resumeSimulation(id);
+        return ResponseEntity.ok(response);
     }
 
     /**
