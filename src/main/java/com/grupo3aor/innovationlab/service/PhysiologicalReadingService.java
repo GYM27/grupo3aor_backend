@@ -37,8 +37,6 @@ public class PhysiologicalReadingService {
 
     @Transactional
     public PhysiologicalReadingDTO createReading(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
-        // I resolve the Simulation entity first to establish a proper FK relation.
-        // This ensures readings can only be created for simulations that actually exist.
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
 
@@ -50,7 +48,6 @@ public class PhysiologicalReadingService {
         
         // Save to DB
         PhysiologicalReading savedReading = repository.save(reading);
-        // Convert to DTO
         PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
         
         // Push the new reading to the WebSocket topic for this specific simulation
@@ -70,7 +67,6 @@ public class PhysiologicalReadingService {
         List<PhysiologicalReadingDTO> savedDtos = new ArrayList<>();
         
         for (PhysiologicalReadingDTO dto : dtos) {
-            // Re-using the single create logic to ensure all relations and WebSocket pushes are triggered
             savedDtos.add(createReading(dto, userEmail, ipAddress));
         }
         
