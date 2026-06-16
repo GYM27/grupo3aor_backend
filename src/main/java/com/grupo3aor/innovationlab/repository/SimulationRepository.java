@@ -5,6 +5,7 @@ import com.grupo3aor.innovationlab.domain.enums.SimulationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,5 +23,14 @@ public interface SimulationRepository extends JpaRepository<Simulation, UUID> {
      * @return List of matching simulations
      */
     List<Simulation> findAllByStatus(SimulationStatus status);
+
+    /**
+     * Fetches simulations matching any of the provided statuses in a single query.
+     * Used by the engine to retrieve both INICIADA and EM_CURSO in one DB round-trip.
+     *
+     * @param statuses Collection of statuses to match
+     * @return List of matching simulations
+     */
+    List<Simulation> findAllByStatusIn(Collection<SimulationStatus> statuses);
 
 }

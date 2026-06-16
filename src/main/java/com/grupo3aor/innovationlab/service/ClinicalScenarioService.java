@@ -9,16 +9,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * Business logic tier managing Clinical Scenarios.
- * <p>
- * I implemented this abstraction to securely handle medical scenario management,
- * executing business checks prior to communicating with the relational persistence layer.
- * </p>
+ * Here we handle the business logic for Clinical Scenarios.
  * * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
@@ -28,6 +24,7 @@ import java.util.stream.Collectors;
 public class ClinicalScenarioService {
 
     private final ClinicalScenarioRepository repository;
+    private final ObjectMapper objectMapper;
 
     /**
      * Instantiates and persists a new clinical scenario configuration.
@@ -38,19 +35,23 @@ public class ClinicalScenarioService {
      */
     @Transactional
     public ClinicalScenarioResponse createScenario(ClinicalScenarioRequest request, String operatorEmail, String originIp) {
-        if (repository.findByName(request.getName()).isPresent()) {
-            log.warn("[BUSINESS_VALIDATION] Action: CREATE_SCENARIO_EXISTS | Reason: Returning existing scenario | Target: {}", request.getName());
-            return mapToResponse(repository.findByName(request.getName()).get());
+        String metricsJson = null;
+        try {
+            if (request.getMetrics() != null) {
+                metricsJson = objectMapper.writeValueAsString(request.getMetrics());
+            }
+        } catch (Exception e) {
+            log.error("Failed to serialize metrics for scenario", e);
         }
 
-        // I transferred the verified properties into a new physical representation,
-        // attaching the immutable auditing tokens passed down from the REST boundary.
         ClinicalScenario scenario = ClinicalScenario.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .metricsPayload(metricsJson)
                 .createdBy(operatorEmail)
                 .updatedBy(operatorEmail)
                 .originIp(originIp)
+                .active(true) // Making sure it starts active (if applicable to the builder)
                 .build();
 
         ClinicalScenario savedScenario = repository.save(scenario);
@@ -69,7 +70,7 @@ public class ClinicalScenarioService {
     public List<ClinicalScenarioResponse> getAllActiveScenarios() {
         return repository.findAllByActiveTrue().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList(); // Using .toList() for Java 16+ (cleaner than Collectors.toList())
     }
 
     /**
@@ -82,7 +83,9 @@ public class ClinicalScenarioService {
         ClinicalScenario scenario = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
 
-        repository.delete(scenario);
+        // Fix: Executing a true Soft Delete
+        scenario.setActive(false); 
+        scenario.setUpdatedBy(operatorEmail);
 
         log.info("[AUDIT] Action: SCENARIO_SOFT_DELETED | Target ID: {} | Operator: {}", id, operatorEmail);
     }
@@ -105,21 +108,24 @@ public class ClinicalScenarioService {
         ClinicalScenario scenario = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
 
-        if (!scenario.getName().equalsIgnoreCase(request.getName()) &&
-            repository.findByName(request.getName()).isPresent()) {
-            throw new IllegalArgumentException("A clinical scenario with this name already exists.");
-        }
-
         scenario.setName(request.getName());
         scenario.setDescription(request.getDescription());
         scenario.setUpdatedBy(operatorEmail);
 
-        ClinicalScenario updatedScenario = repository.save(scenario);
+        try {
+            if (request.getMetrics() != null) {
+                scenario.setMetricsPayload(objectMapper.writeValueAsString(request.getMetrics()));
+            }
+        } catch (Exception e) {
+            log.error("Failed to serialize metrics for scenario update", e);
+        }
+
+        // O repository.save(scenario) foi removido. O JPA Dirty Checking fará o update automático.
 
         log.info("[AUDIT] Action: SCENARIO_UPDATED | Target ID: {} | Operator: {} | IP: {}", 
-                 updatedScenario.getId(), operatorEmail, originIp);
+                 scenario.getId(), operatorEmail, originIp);
 
-        return mapToResponse(updatedScenario);
+        return mapToResponse(scenario);
     }
 
     /**

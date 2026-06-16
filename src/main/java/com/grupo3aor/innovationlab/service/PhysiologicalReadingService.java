@@ -7,14 +7,20 @@ import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.mapper.SimulationMapper;
 import com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.ArrayList;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Slf4j // Adds the Logger (Lombok)
+@RequiredArgsConstructor // Removes the manual constructor
 @Service
 public class PhysiologicalReadingService {
 
@@ -24,58 +30,82 @@ public class PhysiologicalReadingService {
     private final RuleEvaluatorService ruleEvaluatorService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    public PhysiologicalReadingService(PhysiologicalReadingRepository repository, SimulationMapper mapper,
-                                       SimulationRepository simulationRepository,
-                                       RuleEvaluatorService ruleEvaluatorService,
-                                       SimpMessagingTemplate messagingTemplate) {
-        this.repository = repository;
-        this.mapper = mapper;
-        this.simulationRepository = simulationRepository;
-        this.ruleEvaluatorService = ruleEvaluatorService;
-        this.messagingTemplate = messagingTemplate;
-    }
-
     @Transactional
     public PhysiologicalReadingDTO createReading(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
-        Simulation simulation = simulationRepository.findById(dto.getSimulationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
-
-        PhysiologicalReading reading = mapper.toEntity(dto, simulation);
-
-        reading.setCreatedBy(userEmail);
-        reading.setUpdatedBy(userEmail);
-        reading.setOriginIp(ipAddress);
-
-        PhysiologicalReading savedReading = repository.save(reading);
-        PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
+        Simulation simulation = getSimulationOrThrow(dto.getSimulationId());
         
-        // Push the new reading to the WebSocket topic for this specific simulation
-        messagingTemplate.convertAndSend("/topic/simulations/" + dto.getSimulationId() + "/readings", savedDto);
-        
-        try {
-            ruleEvaluatorService.evaluateReading(savedReading);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        return savedDto;
+        PhysiologicalReading savedReading = processSingleReading(dto, simulation, userEmail, ipAddress);
+        return publishAndEvaluate(savedReading);
     }
 
     @Transactional
     public List<PhysiologicalReadingDTO> createReadingBatch(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
-        List<PhysiologicalReadingDTO> savedDtos = new ArrayList<>();
-        
+        if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
+
+        // 1. Local cache to avoid hitting the DB for the same simulation multiple times in a single batch
+        Map<UUID, Simulation> simulationCache = new HashMap<>();
+        List<PhysiologicalReading> entitiesToSave = new ArrayList<>();
+
+        // 2. Prepare all the entities
         for (PhysiologicalReadingDTO dto : dtos) {
-            savedDtos.add(createReading(dto, userEmail, ipAddress));
+            Simulation simulation = simulationCache.computeIfAbsent(
+                dto.getSimulationId(), 
+                this::getSimulationOrThrow
+            );
+            
+            PhysiologicalReading reading = mapper.toEntity(dto, simulation);
+            reading.setCreatedBy(userEmail);
+            reading.setUpdatedBy(userEmail);
+            reading.setOriginIp(ipAddress);
+            
+            entitiesToSave.add(reading);
         }
-        
-        return savedDtos;
+
+        // 3. Save EVERYTHING at once (True Batch Insert)
+        List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
+
+        // 4. Publish to WebSockets and evaluate rules for the saved readings
+        return savedReadings.stream()
+                .map(this::publishAndEvaluate)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<PhysiologicalReadingDTO> getReadingsBySimulation(UUID simulationId) {
         return repository.findBySimulation_Id(simulationId).stream()
                 .map(mapper::toDto)
-                .collect(Collectors.toList());
+                .toList(); // Cleaner (Java 16+)
+    }
+
+    // --- Helper Methods to keep the code DRY (Don't Repeat Yourself) ---
+
+    private Simulation getSimulationOrThrow(UUID simulationId) {
+        return simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
+    }
+
+    private PhysiologicalReading processSingleReading(PhysiologicalReadingDTO dto, Simulation simulation, String userEmail, String ipAddress) {
+        PhysiologicalReading reading = mapper.toEntity(dto, simulation);
+        reading.setCreatedBy(userEmail);
+        reading.setUpdatedBy(userEmail);
+        reading.setOriginIp(ipAddress);
+        return repository.save(reading);
+    }
+
+    private PhysiologicalReadingDTO publishAndEvaluate(PhysiologicalReading savedReading) {
+        PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
+
+        // Send to a simulation-specific topic, not a global one!
+        String destination = "/topic/simulations/" + savedReading.getSimulation().getId() + "/readings";
+        messagingTemplate.convertAndSend(destination, savedDto);
+
+        try {
+            ruleEvaluatorService.evaluateReading(savedReading);
+        } catch (Exception e) {
+            // Proper error logging for production
+            log.error("Failed to evaluate rules for reading ID {}: {}", savedReading.getId(), e.getMessage(), e);
+        }
+
+        return savedDto;
     }
 }
