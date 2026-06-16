@@ -229,6 +229,36 @@ public class AuthService {
     }
 
     /**
+     * Resends the activation email with a freshly generated token.
+     * Prevents enumeration by returning silently if the account doesn't exist or is already active.
+     */
+    @Transactional
+    public void resendActivationEmail(String email) {
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isEmpty()) {
+            log.warn("[SECURITY_ALERT] Action: RESEND_ACTIVATION_ATTEMPT | Target Email: {} | Reason: EMAIL_NOT_FOUND", email);
+            return;
+        }
+
+        User user = userOptional.get();
+
+        if (user.isAccountActivated()) {
+            log.info("[SECURITY_ALERT] Action: RESEND_ACTIVATION_ATTEMPT | Target Email: {} | Reason: ACCOUNT_ALREADY_ACTIVATED", email);
+            return;
+        }
+
+        // Generate a brand new token to invalidate the old one
+        String token = UUID.randomUUID().toString();
+        user.setActivationToken(token);
+        user.setUpdatedBy("RESEND_ACTIVATION_FLOW");
+        userRepository.save(user);
+
+        emailService.sendConfirmationEmail(user.getEmail(), user.getFirstName(), token);
+        log.info("[AUDIT] Action: ACTIVATION_EMAIL_RESENT | Target Email: {}", email);
+    }
+
+    /**
      * Resets the user's password using the secure token provided via email.
      *
      * @param token The secure reset token.

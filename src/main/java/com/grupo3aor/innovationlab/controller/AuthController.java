@@ -133,6 +133,21 @@ public class AuthController {
     }
 
     /**
+     * Endpoint to request a new activation email.
+     * Reuses ForgotPasswordRequest simply because it validates the email format.
+     */
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> resendActivation(@Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            authService.resendActivationEmail(request.getEmail());
+            return ResponseEntity.ok(Map.of("message", "If the account exists and is inactive, a new activation email has been sent."));
+        } catch (Exception e) {
+            log.error("[SECURITY_LOG] Action: RESEND_ACTIVATION_ERROR | Error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "An error occurred while processing your request."));
+        }
+    }
+
+    /**
      * Endpoint to reset a password using a secure token.
      * * @param request Validated payload containing the token and new password.
      * @return Success message if the reset was successful.
