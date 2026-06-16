@@ -45,19 +45,20 @@ public class PhysiologicalReadingService {
         reading.setCreatedBy(userEmail);
         reading.setUpdatedBy(userEmail);
         reading.setOriginIp(ipAddress);
-
+        
+        // Save to DB
         PhysiologicalReading savedReading = repository.save(reading);
         PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
         
         // Push the new reading to the WebSocket topic for this specific simulation
         messagingTemplate.convertAndSend("/topic/simulations/" + dto.getSimulationId() + "/readings", savedDto);
-        
+
         try {
             ruleEvaluatorService.evaluateReading(savedReading);
-        } catch (Exception e) {
+        } catch (Exception e){
             e.printStackTrace();
         }
-        
+
         return savedDto;
     }
 
