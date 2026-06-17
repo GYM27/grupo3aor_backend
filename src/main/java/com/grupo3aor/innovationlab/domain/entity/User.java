@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 /**
  * Persistence model mapping our user registry.
@@ -33,6 +34,7 @@ import org.hibernate.annotations.SQLDelete;
 // This ensures that whenever a delete instruction is issued, the platform alters
 // the active flag instead of wiping the record, thus preserving structural history.
 @SQLDelete(sql = "UPDATE users SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("active = true")
 public class User extends Auditable {
 
     /**

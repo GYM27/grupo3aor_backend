@@ -8,11 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.SQLDelete;
 import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
-
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -29,7 +25,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-@SQLDelete(sql = "UPDATE alert SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 public class Alert extends Auditable {
 
     @Id
@@ -52,19 +47,12 @@ public class Alert extends Auditable {
     @ToString.Exclude
     private Rule rule;
 
-    @Column(name = "timestamp", nullable = false)
-    private LocalDateTime timestamp;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private AlertStatus status;
 
-    @Column(name = "value_at_trigger", nullable = false, precision = 10, scale = 2)
-    private BigDecimal valueAtTrigger;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+    @Column(name = "value_at_trigger", nullable = false)
+    private Double valueAtTrigger;
 
     @Override
     public boolean equals(Object o) {

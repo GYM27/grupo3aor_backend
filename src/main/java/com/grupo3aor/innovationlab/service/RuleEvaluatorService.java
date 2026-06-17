@@ -8,7 +8,6 @@ import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.domain.entity.Rule;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
-import com.grupo3aor.innovationlab.dto.RuleCondition;
 
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -28,15 +27,14 @@ public class RuleEvaluatorService {
     private final YAMLMapper yamlMapper = new YAMLMapper();
 
     @Transactional
-    public void evaluateReading(PhysiologicalReading reading) {
-        for (Rule rule : ruleRepository.findAllByActiveTrue()) {
-            try {
-                RuleCondition ruleCondition = yamlMapper.readValue(rule.getExpressionDsl(), RuleCondition.class);
-                
-                boolean isTriggered = evaluateCondition(ruleCondition, reading);
+    public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
+        
+        for (Rule rule : ruleRepository.findAll()) {
+            // A Entidade (Rule) toma a decisão de forma encapsulada (Rich Domain Model)
+            boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue());
 
-                // If the rule triggered, let's check if an active alert ALREADY EXISTS to avoid spamming the database
-                if (isTriggered) {
+            // Se a regra disparar, verifico se já existe um alerta ativo para não enviar spam para a BD
+            if (isTriggered) {
                     boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
                         reading.getSimulation(), rule, AlertStatus.ATIVO
                     );
