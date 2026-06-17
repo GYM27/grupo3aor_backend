@@ -1,7 +1,7 @@
 package com.grupo3aor.innovationlab.service;
 
 import org.springframework.stereotype.Service;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.grupo3aor.innovationlab.repository.AlertRepository;
 import com.grupo3aor.innovationlab.repository.RuleRepository;
 import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
@@ -11,42 +11,29 @@ import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
 import com.grupo3aor.innovationlab.dto.RuleCondition;
 
 import org.springframework.transaction.annotation.Transactional;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RuleEvaluatorService {
 
     private final AlertRepository alertRepository;
     private final RuleRepository ruleRepository;
-    private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    
+    // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
+    private final YAMLMapper yamlMapper = new YAMLMapper();
 
     @Transactional
-    public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
-        
+    public void evaluateReading(PhysiologicalReading reading) {
         for (Rule rule : ruleRepository.findAllByActiveTrue()) {
-            RuleCondition ruleCondition = objectMapper.readValue(rule.getExpressionDsl(), RuleCondition.class);
-            
-            // We must first verify if the rule's metric matches the reading's handle (e.g. "HEART_RATE")
-            if (ruleCondition.getMetric().equals(reading.getHandle())) {
+            try {
+                RuleCondition ruleCondition = yamlMapper.readValue(rule.getExpressionDsl(), RuleCondition.class);
                 
-                boolean isTriggered = false;
-
-                // Now we dynamically evaluate the threshold condition using a switch statement
-                switch (ruleCondition.getOperator()) {
-                    case ">": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) > 0;
-                        break;
-                    case "<": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) < 0;
-                        break;
-                    case "==": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) == 0;
-                        break;
-                    default:
-                        // No valid operator matched, do nothing
-                        break;
-                }
+                boolean isTriggered = evaluateCondition(ruleCondition, reading);
 
                 // If the rule triggered, let's check if an active alert ALREADY EXISTS to avoid spamming the database
                 if (isTriggered) {
@@ -81,7 +68,49 @@ public class RuleEvaluatorService {
                         messagingTemplate.convertAndSend(alertTopic, alertPayload);
                     }
                 }
+            } catch (Exception e) {
+                log.error("Failed to parse or evaluate YAML rule: {}", rule.getId(), e);
             }
         }
+    }
+
+    private boolean evaluateCondition(RuleCondition condition, PhysiologicalReading reading) {
+        // If it's a composite condition (e.g. AND / OR)
+        if (condition.getConditions() != null && !condition.getConditions().isEmpty()) {
+            if ("AND".equalsIgnoreCase(condition.getOperator())) {
+                for (RuleCondition sub : condition.getConditions()) {
+                    if (!evaluateCondition(sub, reading)) {
+                        return false; // Fast fail
+                    }
+                }
+                return true; // All matched
+            } else if ("OR".equalsIgnoreCase(condition.getOperator())) {
+                for (RuleCondition sub : condition.getConditions()) {
+                    if (evaluateCondition(sub, reading)) {
+                        return true; // Fast pass
+                    }
+                }
+                return false; // None matched
+            }
+        } else {
+            // It's a simple condition
+            // Only evaluate if the metric matches the current reading
+            if (!condition.getMetric().equals(reading.getHandle())) {
+                return false; 
+            }
+
+            if (reading.getValue() == null || condition.getThreshold() == null) return false;
+
+            // Dynamically evaluate the threshold condition
+            switch (condition.getOperator()) {
+                case ">": return reading.getValue().compareTo(condition.getThreshold()) > 0;
+                case "<": return reading.getValue().compareTo(condition.getThreshold()) < 0;
+                case "==": return reading.getValue().compareTo(condition.getThreshold()) == 0;
+                case ">=": return reading.getValue().compareTo(condition.getThreshold()) >= 0;
+                case "<=": return reading.getValue().compareTo(condition.getThreshold()) <= 0;
+                default: return false;
+            }
+        }
+        return false;
     }
 }
