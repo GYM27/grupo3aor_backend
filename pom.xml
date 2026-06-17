@@ -89,6 +89,13 @@
             <artifactId>opencsv</artifactId>
             <version>5.9</version>
         </dependency>
+
+        <!-- Google Guava for EvictingQueue (Simulation State Cache) -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.0.0-jre</version>
+        </dependency>
     </dependencies>
 
     <build>

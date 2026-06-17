@@ -2,7 +2,6 @@ package com.grupo3aor.innovationlab.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,7 +33,7 @@ public class PhysiologicalReadingDTO {
     private String unit;
 
     @NotNull(message = "Reading value is required")
-    private BigDecimal value;
+    private Double value;
 
     private LocalDateTime timestamp;
 }
