@@ -8,6 +8,8 @@ import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.domain.entity.Rule;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.grupo3aor.innovationlab.dto.RuleCondition;
 
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +32,9 @@ public class RuleEvaluatorService {
     public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
         
         for (Rule rule : ruleRepository.findAll()) {
-            // A Entidade (Rule) toma a decisão de forma encapsulada (Rich Domain Model)
-            boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue());
+            try {
+                // A Entidade (Rule) toma a decisão de forma encapsulada (Rich Domain Model)
+            boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
 
             // Se a regra disparar, verifico se já existe um alerta ativo para não enviar spam para a BD
             if (isTriggered) {
@@ -43,9 +46,8 @@ public class RuleEvaluatorService {
                         Alert newAlert = Alert.builder()
                             .simulation(reading.getSimulation())
                             .rule(rule)
-                            .timestamp(reading.getTimestamp())
                             .status(AlertStatus.ATIVO)
-                            .valueAtTrigger(reading.getValue())
+                            .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
                             .build();
                         
                         alertRepository.save(newAlert);
@@ -72,43 +74,5 @@ public class RuleEvaluatorService {
         }
     }
 
-    private boolean evaluateCondition(RuleCondition condition, PhysiologicalReading reading) {
-        // If it's a composite condition (e.g. AND / OR)
-        if (condition.getConditions() != null && !condition.getConditions().isEmpty()) {
-            if ("AND".equalsIgnoreCase(condition.getOperator())) {
-                for (RuleCondition sub : condition.getConditions()) {
-                    if (!evaluateCondition(sub, reading)) {
-                        return false; // Fast fail
-                    }
-                }
-                return true; // All matched
-            } else if ("OR".equalsIgnoreCase(condition.getOperator())) {
-                for (RuleCondition sub : condition.getConditions()) {
-                    if (evaluateCondition(sub, reading)) {
-                        return true; // Fast pass
-                    }
-                }
-                return false; // None matched
-            }
-        } else {
-            // It's a simple condition
-            // Only evaluate if the metric matches the current reading
-            if (!condition.getMetric().equals(reading.getHandle())) {
-                return false; 
-            }
 
-            if (reading.getValue() == null || condition.getThreshold() == null) return false;
-
-            // Dynamically evaluate the threshold condition
-            switch (condition.getOperator()) {
-                case ">": return reading.getValue().compareTo(condition.getThreshold()) > 0;
-                case "<": return reading.getValue().compareTo(condition.getThreshold()) < 0;
-                case "==": return reading.getValue().compareTo(condition.getThreshold()) == 0;
-                case ">=": return reading.getValue().compareTo(condition.getThreshold()) >= 0;
-                case "<=": return reading.getValue().compareTo(condition.getThreshold()) <= 0;
-                default: return false;
-            }
-        }
-        return false;
-    }
 }

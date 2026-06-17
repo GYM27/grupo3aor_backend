@@ -62,7 +62,7 @@ public class RuleService {
      */
     @Transactional(readOnly = true)
     public List<RuleResponse> getAllActiveRules() {
-        return ruleRepository.findAllByActiveTrue().stream()
+        return ruleRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

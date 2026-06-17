@@ -48,9 +48,8 @@ public class SimulationMapper {
         Alert entity = new Alert();
         entity.setSimulation(simulation);
         entity.setRule(rule);
-        entity.setTimestamp(dto.getTimestamp() != null ? dto.getTimestamp() : LocalDateTime.now());
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : AlertStatus.ATIVO);
-        entity.setValueAtTrigger(dto.getValueAtTrigger());
+        entity.setValueAtTrigger(dto.getValueAtTrigger() != null ? dto.getValueAtTrigger().doubleValue() : null);
         return entity;
     }
 
@@ -60,9 +59,9 @@ public class SimulationMapper {
         // I extract the UUIDs from the FK relations so the API response stays consistent
         dto.setSimulationId(entity.getSimulation() != null ? entity.getSimulation().getId() : null);
         dto.setRuleId(entity.getRule() != null ? entity.getRule().getId() : null);
-        dto.setTimestamp(entity.getTimestamp());
+        dto.setTimestamp(entity.getCreatedAt());
         dto.setStatus(entity.getStatus());
-        dto.setValueAtTrigger(entity.getValueAtTrigger());
+        dto.setValueAtTrigger(entity.getValueAtTrigger() != null ? java.math.BigDecimal.valueOf(entity.getValueAtTrigger()) : null);
         return dto;
     }
 
