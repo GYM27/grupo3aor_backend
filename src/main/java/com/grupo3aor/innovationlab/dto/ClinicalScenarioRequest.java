@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.util.List;
+
 /**
  * Inbound Data Transfer Object for creating or updating a Clinical Scenario.
  * <p>
@@ -31,7 +33,22 @@ public class ClinicalScenarioRequest {
     /**
      * Detailed medical description of the scenario.
      */
-    // I allowed this description to be submitted without strict upper string limits,
-    // matching the Lob TEXT column capacity on the persistent entity side.
+    // I mapped this description to a TEXT column using Lob to allow 
+    // extensive medical documentation without breaking the string length boundaries.
     private String description;
+
+    /**
+     * Versão do padrão MDIB (Medical Device Information Base).
+     */
+    private Integer mdibVersion;
+
+    /**
+     * Identificador do dispositivo médico de origem.
+     */
+    private String device;
+
+    /**
+     * Lista de leituras fisiológicas incluídas no cenário clínico.
+     */
+    private List<MetricDTO> metrics;
 }

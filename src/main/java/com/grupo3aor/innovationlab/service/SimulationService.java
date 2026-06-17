@@ -21,7 +21,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service layer for managing simulations.
+ * Here is where we manage the core simulation lifecycle.
  */
 @Service
 @RequiredArgsConstructor
@@ -31,9 +31,10 @@ public class SimulationService {
     private final SimulationRepository simulationRepository;
     private final UserRepository userRepository;
     private final ClinicalScenarioRepository scenarioRepository;
+    private final SimulationEngineService simulationEngineService;
 
     /**
-     * Starts a new simulation securely from the user's request.
+     * Let's start a new simulation securely from the user's request.
      */
     @Transactional
     public SimulationResponse startSimulation(SimulationRequest request, String userEmail) {
@@ -46,23 +47,27 @@ public class SimulationService {
         Simulation sim = Simulation.builder()
                 .scenario(scenario)
                 .user(starter)
-                .status(SimulationStatus.INICIADA)
+                .status(SimulationStatus.EM_CURSO)
                 .startedAt(LocalDateTime.now())
                 .build();
 
         Simulation saved = simulationRepository.save(sim);
+        
+        // Time to wake up the engine so it starts polling!
+        simulationEngineService.incrementActiveSimulations();
+        
         return mapToResponse(saved);
     }
 
     /**
-     * Ends an ongoing simulation.
+     * Safely ends an ongoing simulation.
      */
     @Transactional
     public SimulationResponse stopSimulation(UUID simulationId) {
         Simulation sim = simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
 
-        // Let's protect it so we don't end a simulation that is already finished or canceled!
+        // We must protect this block to prevent ending a simulation that is already finished or canceled!
         if (sim.getStatus() == SimulationStatus.FINALIZADA || sim.getStatus() == SimulationStatus.CANCELADA) {
             throw new IllegalStateException("Simulation is already finalized or canceled.");
         }
@@ -71,11 +76,15 @@ public class SimulationService {
         sim.setEndedAt(LocalDateTime.now());
 
         Simulation saved = simulationRepository.save(sim);
+        
+        // Let the engine know that one less simulation is active
+        simulationEngineService.decrementActiveSimulations();
+        
         return mapToResponse(saved);
     }
 
     /**
-     * Gets all historical simulations.
+     * Grabs the entire simulation execution history.
      */
     @Transactional(readOnly = true)
     public List<SimulationResponse> getHistory() {
@@ -100,6 +109,52 @@ public class SimulationService {
         sim.setEndedAt(LocalDateTime.now());
 
         Simulation saved = simulationRepository.save(sim);
+        
+        // Letting the engine know we just canceled one
+        simulationEngineService.decrementActiveSimulations();
+        
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Pauses an ongoing simulation.
+     */
+    @Transactional
+    public SimulationResponse pauseSimulation(UUID simulationId) {
+        Simulation sim = simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
+
+        if (sim.getStatus() != SimulationStatus.EM_CURSO && sim.getStatus() != SimulationStatus.INICIADA) {
+            throw new IllegalStateException("Only active simulations can be paused.");
+        }
+
+        sim.setStatus(SimulationStatus.PAUSADA);
+        Simulation saved = simulationRepository.save(sim);
+
+        // We can tell the engine to stop polling for this specific simulation
+        simulationEngineService.decrementActiveSimulations();
+
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Resumes a previously paused simulation.
+     */
+    @Transactional
+    public SimulationResponse resumeSimulation(UUID simulationId) {
+        Simulation sim = simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
+
+        if (sim.getStatus() != SimulationStatus.PAUSADA) {
+            throw new IllegalStateException("Only paused simulations can be resumed.");
+        }
+
+        sim.setStatus(SimulationStatus.EM_CURSO);
+        Simulation saved = simulationRepository.save(sim);
+
+        // Simulation is back on track, wake the engine up again
+        simulationEngineService.incrementActiveSimulations();
+
         return mapToResponse(saved);
     }
 

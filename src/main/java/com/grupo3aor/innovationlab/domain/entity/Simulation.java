@@ -8,12 +8,13 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * I created this JPA Entity to track the actual execution of a clinical scenario.
+ * JPA Entity tracking the actual execution of a clinical scenario.
  */
 @Entity
 @Table(name = "simulations")
@@ -55,7 +56,7 @@ public class Simulation extends Auditable {
 
     // =========================================================
     // TIMESTAMPS
-    // I need to know exactly when the simulation started and ended.
+    // We need to know exactly when the simulation started and ended.
     // =========================================================
     @Column(name = "started_at")
     private LocalDateTime startedAt;
@@ -65,16 +66,26 @@ public class Simulation extends Auditable {
 
     // =========================================================
     // STATUS
-    // I used an Enum to track if it's running, finished, or canceled.
+    // Using an Enum to track if it's running, finished, or canceled.
     // Saved as a String to keep the DB readable!
+    // We changed the column name to sim_status to bypass H2 ENUM strictness on the old table.
     // =========================================================
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SimulationStatus status;
+    @Column(name = "sim_status", nullable = false, columnDefinition = "varchar(50) default 'FINALIZADA'")
+    @Builder.Default
+    private SimulationStatus status = SimulationStatus.FINALIZADA;
+
+    // =========================================================
+    // PROGRESS TRACKING
+    // Tracking where we are in the JSON metrics array during playback.
+    // =========================================================
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    @Builder.Default
+    private int nextMetricIndex = 0;
 
     // =========================================================
     // IDENTITY (EQUALS & HASHCODE)
-    // Same rule as always: I only compare by the primary key (id).
+    // Same rule as always: we only compare by the primary key (id).
     // =========================================================
     @Override
     public boolean equals(Object o) {
