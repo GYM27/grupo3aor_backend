@@ -10,6 +10,7 @@ import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.util.UUID;
 
@@ -28,6 +29,7 @@ import java.util.UUID;
 // I updated this interceptor to use 'active = false' for soft delete,
 // standardizing the naming across all entities (User, PhysiologicalSystem, ClinicalScenario all use 'active').
 @SQLDelete(sql = "UPDATE rules SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("active = true")
 public class Rule extends Auditable {
 
     // =========================================================

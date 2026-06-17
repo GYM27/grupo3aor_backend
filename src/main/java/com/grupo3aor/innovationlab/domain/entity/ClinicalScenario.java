@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 /**
  * Persistence model mapping our clinical scenarios registry.
@@ -29,6 +30,7 @@ import org.hibernate.annotations.SQLDelete;
 // I enforced soft deletion here as well to guarantee that no clinical setups 
 // are ever permanently destroyed, keeping them available for historical reporting.
 @SQLDelete(sql = "UPDATE clinical_scenarios SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("active = true")
 public class ClinicalScenario extends Auditable {
 
     /**

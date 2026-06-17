@@ -27,7 +27,7 @@ public class RuleEvaluatorService {
     @Transactional
     public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
         
-        for (Rule rule : ruleRepository.findAllByActiveTrue()) {
+        for (Rule rule : ruleRepository.findAll()) {
             RuleCondition ruleCondition = objectMapper.readValue(rule.getExpressionDsl(), RuleCondition.class);
             
             // I first verify if the rule's metric matches the reading's handle (e.g. "HEART_RATE")
