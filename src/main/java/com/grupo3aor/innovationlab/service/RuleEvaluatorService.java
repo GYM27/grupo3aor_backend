@@ -8,7 +8,6 @@ import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.domain.entity.Rule;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
-import com.grupo3aor.innovationlab.dto.RuleCondition;
 
 import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,28 +27,11 @@ public class RuleEvaluatorService {
     public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
         
         for (Rule rule : ruleRepository.findAll()) {
-            RuleCondition ruleCondition = objectMapper.readValue(rule.getExpressionDsl(), RuleCondition.class);
-            
-            // I first verify if the rule's metric matches the reading's handle (e.g. "HEART_RATE")
-            if (ruleCondition.getMetric().equals(reading.getHandle())) {
-                
-                boolean isTriggered = false;
+            // A Entidade (Rule) toma a decisão de forma encapsulada (Rich Domain Model)
+            boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue());
 
-                // Then I dynamically evaluate the threshold condition using a switch statement
-                switch (ruleCondition.getOperator()) {
-                    case ">": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) > 0;
-                        break;
-                    case "<": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) < 0;
-                        break;
-                    case "==": isTriggered = reading.getValue().compareTo(ruleCondition.getThreshold()) == 0;
-                        break;
-                    default:
-                        // No valid operator matched, do nothing
-                        break;
-                }
-
-                // If the rule triggered, I check if an active alert ALREADY EXISTS to avoid spamming the database
-                if (isTriggered) {
+            // Se a regra disparar, verifico se já existe um alerta ativo para não enviar spam para a BD
+            if (isTriggered) {
                     boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
                         reading.getSimulation(), rule, AlertStatus.ATIVO
                     );

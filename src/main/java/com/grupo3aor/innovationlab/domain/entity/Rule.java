@@ -12,6 +12,9 @@ import lombok.AllArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.grupo3aor.innovationlab.dto.RuleCondition;
+
 import java.util.UUID;
 
 /**
@@ -86,6 +89,30 @@ public class Rule extends Auditable {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    // =========================================================
+    // DOMAIN LOGIC (DDD)
+    // I moved the math logic here so the entity knows its own limits!
+    // =========================================================
+    @Transient
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    public boolean isTriggeredBy(String handle, Double value) {
+        if (this.expressionDsl == null || this.expressionDsl.isEmpty()) return false;
+        try {
+            RuleCondition condition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+            if (!condition.getMetric().equals(handle)) return false;
+
+            switch (condition.getOperator()) {
+                case ">": return value.compareTo(condition.getThreshold()) > 0;
+                case "<": return value.compareTo(condition.getThreshold()) < 0;
+                case "==": return value.compareTo(condition.getThreshold()) == 0;
+                default: return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     // =========================================================
     // IDENTITY (EQUALS & HASHCODE)

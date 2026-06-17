@@ -1,6 +1,5 @@
 package com.grupo3aor.innovationlab.dto;
 
-import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,6 +11,6 @@ public class RuleCondition {
 
     private String metric;
     private String operator;
-    private BigDecimal threshold;
+    private Double threshold;
 
 }
