@@ -138,4 +138,4 @@ public class EvaluationReportService {
         return repository.findBySimulation_Id(simulationId)
                 .orElseThrow(() -> new RuntimeException("Evaluation report missing for target simulation context"));
     }
-}
+}

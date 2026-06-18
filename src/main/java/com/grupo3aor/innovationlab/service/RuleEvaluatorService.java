@@ -8,6 +8,7 @@ import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.domain.entity.Rule;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.grupo3aor.innovationlab.dto.RuleCondition;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +45,7 @@ public class RuleEvaluatorService {
         for (Rule rule : ruleRepository.findAll()) {
             try {
                 // The Entity (Rule) makes the decision in an encapsulated manner (Rich Domain Model)
-                boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue());
+                boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
 
                 // If the rule triggers, we verify if an active alert already exists to avoid spamming the DB
                 if (isTriggered) {
@@ -57,7 +58,7 @@ public class RuleEvaluatorService {
                             .simulation(reading.getSimulation())
                             .rule(rule)
                             .status(AlertStatus.ATIVO)
-                            .valueAtTrigger(reading.getValue())
+                            .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
                             .build();
                         
                         alertRepository.save(newAlert);
@@ -82,45 +83,5 @@ public class RuleEvaluatorService {
                 log.error("Failed to parse or evaluate YAML rule: {}", rule.getId(), e);
             }
         }
-    }
-
-    private boolean evaluateCondition(RuleCondition condition, PhysiologicalReading reading) {
-        // If it's a composite condition (e.g. AND / OR)
-        if (condition.getConditions() != null && !condition.getConditions().isEmpty()) {
-            if ("AND".equalsIgnoreCase(condition.getOperator())) {
-                for (RuleCondition sub : condition.getConditions()) {
-                    if (!evaluateCondition(sub, reading)) {
-                        return false; // Fast fail
-                    }
-                }
-                return true; // All matched
-            } else if ("OR".equalsIgnoreCase(condition.getOperator())) {
-                for (RuleCondition sub : condition.getConditions()) {
-                    if (evaluateCondition(sub, reading)) {
-                        return true; // Fast pass
-                    }
-                }
-                return false; // None matched
-            }
-        } else {
-            // It's a simple condition
-            // Only evaluate if the metric matches the current reading
-            if (!condition.getMetric().equals(reading.getHandle())) {
-                return false; 
-            }
-
-            if (reading.getValue() == null || condition.getThreshold() == null) return false;
-
-            // Dynamically evaluate the threshold condition
-            switch (condition.getOperator()) {
-                case ">": return reading.getValue().compareTo(condition.getThreshold()) > 0;
-                case "<": return reading.getValue().compareTo(condition.getThreshold()) < 0;
-                case "==": return reading.getValue().compareTo(condition.getThreshold()) == 0;
-                case ">=": return reading.getValue().compareTo(condition.getThreshold()) >= 0;
-                case "<=": return reading.getValue().compareTo(condition.getThreshold()) <= 0;
-                default: return false;
-            }
-        }
-        return false;
     }
 }

@@ -49,7 +49,7 @@ public class SimulationMapper {
         entity.setSimulation(simulation);
         entity.setRule(rule);
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : AlertStatus.ATIVO);
-        entity.setValueAtTrigger(dto.getValueAtTrigger());
+        entity.setValueAtTrigger(dto.getValueAtTrigger() != null ? dto.getValueAtTrigger().doubleValue() : null);
         return entity;
     }
 
@@ -61,7 +61,7 @@ public class SimulationMapper {
         dto.setRuleId(entity.getRule() != null ? entity.getRule().getId() : null);
         dto.setTimestamp(entity.getCreatedAt());
         dto.setStatus(entity.getStatus());
-        dto.setValueAtTrigger(entity.getValueAtTrigger());
+        dto.setValueAtTrigger(entity.getValueAtTrigger() != null ? java.math.BigDecimal.valueOf(entity.getValueAtTrigger()) : null);
         return dto;
     }
 
