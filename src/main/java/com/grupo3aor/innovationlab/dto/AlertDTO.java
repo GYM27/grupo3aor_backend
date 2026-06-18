@@ -3,7 +3,7 @@ package com.grupo3aor.innovationlab.dto;
 import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import java.math.BigDecimal;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -27,5 +27,5 @@ public class AlertDTO {
     private AlertStatus status;
 
     @NotNull(message = "The reading value recorded at trigger time is required")
-    private BigDecimal valueAtTrigger;
+    private Double valueAtTrigger;
 }

@@ -89,7 +89,7 @@ public class EvaluationReportService {
                 alertTable.addCell(new com.lowagie.text.Phrase("Mensagem", boldFont));
                 
                 for (com.grupo3aor.innovationlab.domain.entity.Alert a : alerts) {
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getCreatedAt().toString(), textFont));
+                    alertTable.addCell(new com.lowagie.text.Phrase(a.getCreatedAt() != null ? a.getCreatedAt().toString() : "N/A", textFont));
                     alertTable.addCell(new com.lowagie.text.Phrase(a.getRule().getSeverity().name(), textFont));
                     alertTable.addCell(new com.lowagie.text.Phrase(a.getRule().getExpressionDsl(), textFont));
                 }
@@ -138,4 +138,4 @@ public class EvaluationReportService {
         return repository.findBySimulation_Id(simulationId)
                 .orElseThrow(() -> new RuntimeException("Evaluation report missing for target simulation context"));
     }
-}
+}

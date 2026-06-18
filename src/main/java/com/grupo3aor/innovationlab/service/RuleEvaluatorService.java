@@ -16,6 +16,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Service responsible for dynamically evaluating physiological readings against the registered
+ * clinical rules. Uses the Domain's rich model to interpret conditions and trigger alerts.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -28,16 +32,23 @@ public class RuleEvaluatorService {
     // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
     private final YAMLMapper yamlMapper = new YAMLMapper();
 
+    /**
+     * Evaluates a physiological reading against all active rules in the system.
+     * If a rule's conditions are met, it automatically generates and broadcasts an Alert.
+     *
+     * @param reading The physiological reading to be evaluated
+     * @throws Exception if there is an error evaluating the dynamic rule
+     */
     @Transactional
-    public void evaluateReading(PhysiologicalReading reading) throws JsonProcessingException {
+    public void evaluateReading(PhysiologicalReading reading) throws Exception {
         
         for (Rule rule : ruleRepository.findAll()) {
             try {
-                // A Entidade (Rule) toma a decisão de forma encapsulada (Rich Domain Model)
-            boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
+                // The Entity (Rule) makes the decision in an encapsulated manner (Rich Domain Model)
+                boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
 
-            // Se a regra disparar, verifico se já existe um alerta ativo para não enviar spam para a BD
-            if (isTriggered) {
+                // If the rule triggers, we verify if an active alert already exists to avoid spamming the DB
+                if (isTriggered) {
                     boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
                         reading.getSimulation(), rule, AlertStatus.ATIVO
                     );
@@ -73,6 +84,4 @@ public class RuleEvaluatorService {
             }
         }
     }
-
-
 }

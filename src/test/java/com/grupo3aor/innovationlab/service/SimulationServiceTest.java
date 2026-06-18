@@ -50,6 +50,9 @@ class SimulationServiceTest {
     @Mock
     private ClinicalScenarioRepository scenarioRepository;
 
+    @Mock
+    private SimulationEngineService simulationEngineService;
+
     @InjectMocks
     private SimulationService simulationService;
 

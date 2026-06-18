@@ -5,11 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
+
 
 /**
- * DTO para mapear as leituras individuais de métricas que vêm dentro do ficheiro JSON
- * do cenário clínico. Cada MetricDTO representa um ponto no tempo com um valor fisiológico.
+ * Data Transfer Object (DTO) for mapping individual metric readings 
+ * extracted from the clinical scenario JSON file.
+ * Each MetricDTO represents a specific point in time with a physiological value.
  */
 @Data
 @NoArgsConstructor
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
 public class MetricDTO {
     private String handle;
     private String unit;
-    private BigDecimal value;
-    private String timestamp; // Formato esperado: "2026-03-17T10:00:05Z"
+    private Double value;
+    /** Expected format: "2026-03-17T10:00:05Z" */
+    private String timestamp;
 }

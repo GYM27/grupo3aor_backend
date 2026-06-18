@@ -10,7 +10,6 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -27,7 +26,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-@SQLDelete(sql = "UPDATE physiological_reading SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 public class PhysiologicalReading extends Auditable {
 
     @Id
@@ -49,15 +47,11 @@ public class PhysiologicalReading extends Auditable {
     @Column(name = "unit", nullable = false)
     private String unit;
 
-    @Column(name = "\"value\"", nullable = false, precision = 10, scale = 2)
-    private BigDecimal value;
+    @Column(name = "\"value\"", nullable = false)
+    private Double value;
 
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
 
     @Override
     public boolean equals(Object o) {
