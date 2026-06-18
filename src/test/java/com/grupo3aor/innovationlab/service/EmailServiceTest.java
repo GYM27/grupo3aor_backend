@@ -36,7 +36,7 @@ class EmailServiceTest {
         assertNotNull(sentMessage);
         assertEquals("target@example.com", sentMessage.getTo()[0]);
         assertEquals("Innovation Lab - Account Activation", sentMessage.getSubject());
-        assertTrue(sentMessage.getText().contains("http://localhost:5174/ativar?token=token123"));
+        assertTrue(sentMessage.getText().contains("http://localhost:5173/ativar?token=token123"));
         assertTrue(sentMessage.getText().contains("Hello John,"));
     }
 

@@ -12,5 +12,6 @@ public class RuleCondition {
     private String metric;
     private String operator;
     private Double threshold;
+    private java.util.List<RuleCondition> conditions;
 
 }

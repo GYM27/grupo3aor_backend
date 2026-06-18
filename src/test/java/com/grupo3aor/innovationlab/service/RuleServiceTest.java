@@ -180,7 +180,7 @@ class RuleServiceTest {
                 .active(true)
                 .build();
 
-        when(ruleRepository.findAllByActiveTrue()).thenReturn(List.of(rule1, rule2));
+        when(ruleRepository.findAll()).thenReturn(List.of(rule1, rule2));
 
         // ACT
         List<RuleResponse> result = ruleService.getAllActiveRules();
@@ -194,7 +194,7 @@ class RuleServiceTest {
     @Test
     @DisplayName("getAllActiveRules: deve retornar lista vazia quando não há regras ativas")
     void getAllActiveRules_shouldReturnEmptyList_whenNoActiveRules() {
-        when(ruleRepository.findAllByActiveTrue()).thenReturn(List.of());
+        when(ruleRepository.findAll()).thenReturn(List.of());
 
         List<RuleResponse> result = ruleService.getAllActiveRules();
 

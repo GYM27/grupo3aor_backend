@@ -7,6 +7,7 @@ import com.grupo3aor.innovationlab.dto.RegisterRequest;
 import com.grupo3aor.innovationlab.dto.UserResponse;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -167,6 +168,17 @@ class AuthServiceTest {
                 authService.authenticateUser(loginRequest, "127.0.0.1"));
     }
 
+    @Test
+    @DisplayName("authenticateUser: deve lançar BadCredentials se o utilizador existir na BD mas estiver apagado via Soft Delete (@SQLRestriction)")
+    void authenticateUser_SoftDeletedUser() {
+        // Devido ao @SQLRestriction("active = true") na entidade User, o JPA vai 
+        // devolver Optional.empty() para utilizadores apagados logicamente.
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+        assertThrows(BadCredentialsException.class, () ->
+                authService.authenticateUser(loginRequest, "127.0.0.1"));
+    }
+
     // --- FORGOT PASSWORD TESTS ---
 
     @Test
@@ -187,6 +199,19 @@ class AuthServiceTest {
 
         // Anti-enumeration test: It should not throw any exception
         assertDoesNotThrow(() -> authService.forgotPassword("unknown@example.com"));
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("forgotPassword: deve ignorar silenciosamente pedidos para emails com Soft Delete (Anti-Enumeration)")
+    void forgotPassword_SoftDeletedUser_ShouldNotThrow() {
+        // Se a conta sofreu Soft Delete, o repositório devolve vazio. 
+        // O sistema finge que enviou para não revelar aos hackers que a conta existe mas está inativa.
+        when(userRepository.findByEmail("deleted@example.com")).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> authService.forgotPassword("deleted@example.com"));
 
         verify(userRepository, never()).save(any(User.class));
         verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString(), anyString());
