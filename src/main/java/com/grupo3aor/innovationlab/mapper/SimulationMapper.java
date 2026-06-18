@@ -61,7 +61,7 @@ public class SimulationMapper {
         dto.setRuleId(entity.getRule() != null ? entity.getRule().getId() : null);
         dto.setTimestamp(entity.getCreatedAt());
         dto.setStatus(entity.getStatus());
-        dto.setValueAtTrigger(entity.getValueAtTrigger() != null ? java.math.BigDecimal.valueOf(entity.getValueAtTrigger()) : null);
+        dto.setValueAtTrigger(entity.getValueAtTrigger());
         return dto;
     }
 
