@@ -8,6 +8,9 @@ import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,23 +32,49 @@ public class UserService {
     private final UserRepository userRepository;
 
     /**
+     * Retrieves overall user statistics.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getUserStats() {
+        long total = userRepository.countAllUsers();
+        long inactive = userRepository.countInactiveUsers();
+        long active = total - inactive;
+        return java.util.Map.of(
+            "totalUsers", total,
+            "activeUsers", active,
+            "inactiveUsers", inactive
+        );
+    }
+
+    /**
+     * Retrieves all users (active and inactive).
+     */
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getAllUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> userPage = userRepository.findAllUsers(pageable);
+        return userPage.map(user -> mapToResponse(user));
+    }
+
+    /**
      * Retrieves all operational user records.
      */
     @Transactional(readOnly = true)
-    public List<UserResponse> getAllActiveUsers() {
-        return userRepository.findAllByActiveTrue().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public Page<UserResponse> getAllActiveUsers( int page, int size) {
+      Pageable pageable = PageRequest.of(page, size);
+      Page<User> userPage = userRepository.findAllByActiveTrue(pageable);   
+        
+        return userPage.map(user -> mapToResponse(user));
     }
 
     /**
      * Retrieves exclusively logically deleted user records.
      */
     @Transactional(readOnly = true)
-    public List<UserResponse> getAllInactiveUsers() {
-        return userRepository.findAllByActiveFalse().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public Page<UserResponse> getAllInactiveUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> userPage = userRepository.findAllByActiveFalse(pageable);
+        return userPage.map(this::mapToResponse);
     }
 
     /**
@@ -58,48 +87,52 @@ public class UserService {
         return mapToResponse(user);
     }
 
-    /**
-     * Updates the role profile of an existing user.
-     */
+        @Transactional(readOnly = true)
+    public String getUserEmailById(Long id) {
+        return userRepository.findById(id)
+                .map(User::getEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
+    }
+
     @Transactional
-    public UserResponse updateUserRole(String email, UpdateUserRequest request, String adminEmail) {
+    public UserResponse updateUser(String email, UpdateUserRequest request, String adminEmail) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        // Let's prevent the admin from changing their own profile to avoid accidental lockouts
-        if (user.getEmail().equalsIgnoreCase(adminEmail)) {
+        if (user.getEmail().equalsIgnoreCase(adminEmail) && request.getPerfil() != null && request.getPerfil() != user.getPerfil()) {
             throw new IllegalStateException("Admins cannot change their own profile role.");
         }
 
-        user.setPerfil(request.getPerfil());
+        if (request.getPerfil() != null) user.setPerfil(request.getPerfil());
+        if (request.getFirstName() != null && !request.getFirstName().trim().isEmpty()) user.setFirstName(request.getFirstName().trim());
+        if (request.getLastName() != null && !request.getLastName().trim().isEmpty()) user.setLastName(request.getLastName().trim());
+        if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) user.setEmail(request.getEmail().trim());
+        if (request.getActive() != null) user.setActive(request.getActive());
+
         user.setUpdatedBy(adminEmail);
-        
-        User savedUser = userRepository.save(user);
-
-        log.info("[AUDIT] Action: USER_ROLE_UPDATED | Target Email: {} | New Role: {} | Operator: {}", 
-                 user.getEmail(), request.getPerfil(), adminEmail);
-
-        return mapToResponse(savedUser);
+        return mapToResponse(userRepository.save(user));
     }
 
-    /**
-     * Soft deletes a user account.
-     */
     @Transactional
-    public void softDeleteUser(Long id, String adminEmail) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
+    public void softDeleteUser(String email, String adminEmail) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        // Prevent self-deletion
         if (user.getEmail().equalsIgnoreCase(adminEmail)) {
             throw new IllegalStateException("Admins cannot delete their own account.");
         }
 
         userRepository.delete(user);
-
-        log.info("[AUDIT] Action: USER_SOFT_DELETED | Target ID: {} | Target Email: {} | Operator: {}", 
-                 id, user.getEmail(), adminEmail);
     }
+
+    @Transactional
+    public void activateUser(String email, String adminEmail) {
+        int updatedCount = userRepository.activateUserByEmail(email);
+        if (updatedCount == 0) {
+            throw new ResourceNotFoundException("User not found or already active with email: " + email);
+        }
+    }
+
 
     /**
      * Helper conversion mechanism.
@@ -111,6 +144,7 @@ public class UserService {
                 .lastName(entity.getLastName())
                 .perfil(entity.getPerfil().name())
                 .accountActivated(entity.isAccountActivated())
+                .active(entity.isActive())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

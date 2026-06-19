@@ -118,4 +118,29 @@ public class EmailService {
                      "Reset link: {}", targetEmail, e.getMessage(), fullUrl);
         }
     }
-}
+
+        public void sendInvitationEmail(String targetEmail, String token) {
+        // Encaminhamos para uma nova página de registo no Frontend
+        String fullUrl = "http://localhost:5173/register?token=" + token;
+
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(targetEmail);
+        msg.setSubject("Innovation Lab - Convite de Registo");
+
+        String body = "Olá,\n\n" +
+                      "Foste convidado para te juntares ao Innovation Lab! " + 
+                      "Clica no link abaixo para completares o teu registo e criares a tua conta: " + 
+                      "\n\n" + fullUrl + "\n\n" +
+                      "Melhores cumprimentos,\nA Equipa Innovation Lab.";
+
+        msg.setText(body);
+
+        try {
+            mailSender.send(msg);
+            log.info("[EMAIL] Invitation email dispatched to: {}", targetEmail);
+        } catch (MailException e) {
+            log.warn("[EMAIL_WARNING] Failed to send invitation email to: {} | Cause: {}", targetEmail, e.getMessage());
+        }
+    }
+
+}

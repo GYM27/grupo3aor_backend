@@ -17,7 +17,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -47,14 +46,14 @@ class UserServiceTest {
         updateRequest.setPerfil(PerfilEnum.MANAGER);
     }
 
-    // --- UPDATE USER ROLE TESTS ---
+    // --- UPDATE USER TESTS ---
 
     @Test
-    void updateUserRole_Success() {
+    void updateUser_Success() {
         when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(targetUser));
         when(userRepository.save(any(User.class))).thenReturn(targetUser);
 
-        UserResponse response = userService.updateUserRole("target@example.com", updateRequest, "admin@example.com");
+        UserResponse response = userService.updateUser("target@example.com", updateRequest, "admin@example.com");
 
         assertNotNull(response);
         assertEquals(PerfilEnum.MANAGER.name(), response.getPerfil());
@@ -63,23 +62,23 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserRole_UserNotFound() {
+    void updateUser_UserNotFound() {
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
-                userService.updateUserRole("unknown@example.com", updateRequest, "admin@example.com"));
+                userService.updateUser("unknown@example.com", updateRequest, "admin@example.com"));
 
         assertEquals("User not found with email: unknown@example.com", exception.getMessage());
         verify(userRepository, never()).save(any());
     }
 
     @Test
-    void updateUserRole_PreventSelfUpdate() {
+    void updateUser_PreventSelfUpdate() {
         when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(targetUser));
         targetUser.setEmail("admin@example.com"); // Simulate target is the admin
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                userService.updateUserRole("admin@example.com", updateRequest, "admin@example.com"));
+                userService.updateUser("admin@example.com", updateRequest, "admin@example.com"));
 
         assertEquals("Admins cannot change their own profile role.", exception.getMessage());
         verify(userRepository, never()).save(any());
@@ -89,31 +88,31 @@ class UserServiceTest {
 
     @Test
     void softDeleteUser_Success() {
-        when(userRepository.findById(2L)).thenReturn(Optional.of(targetUser));
+        when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(targetUser));
 
-        assertDoesNotThrow(() -> userService.softDeleteUser(2L, "admin@example.com"));
+        assertDoesNotThrow(() -> userService.softDeleteUser("target@example.com", "admin@example.com"));
 
         verify(userRepository, times(1)).delete(targetUser); // delete() triggers @SQLDelete
     }
 
     @Test
     void softDeleteUser_UserNotFound() {
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
-                userService.softDeleteUser(99L, "admin@example.com"));
+                userService.softDeleteUser("unknown@example.com", "admin@example.com"));
 
-        assertEquals("User not found with ID: 99", exception.getMessage());
+        assertEquals("User not found with email: unknown@example.com", exception.getMessage());
         verify(userRepository, never()).delete(any());
     }
 
     @Test
     void softDeleteUser_PreventSelfDelete() {
-        when(userRepository.findById(2L)).thenReturn(Optional.of(targetUser));
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(targetUser));
         targetUser.setEmail("admin@example.com"); // Target is the admin
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                userService.softDeleteUser(2L, "admin@example.com"));
+                userService.softDeleteUser("admin@example.com", "admin@example.com"));
 
         assertEquals("Admins cannot delete their own account.", exception.getMessage());
         verify(userRepository, never()).delete(any());

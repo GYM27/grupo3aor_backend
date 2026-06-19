@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Direct data access interface managing persistence routines for the {@link User} entity.
@@ -43,15 +45,31 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     // I introduced this distinct query method to bypass soft-deleted accounts during 
     // our everyday core business flows and authentication checks.
-    List<User> findAllByActiveTrue();
+    Page<User> findAllByActiveTrue(Pageable pageable);
     
     /**
      * Retrieves exclusively logically deleted user records.
-     * * @return Collection of archived or deactivated records.
      */
-    // I built this query specifically for our administrative views, enabling operators 
-    // to inspect, audit, or completely restore previously removed accounts.
-    List<User> findAllByActiveFalse();
+    @org.springframework.data.jpa.repository.Query(
+        value = "SELECT * FROM users WHERE active = false", 
+        countQuery = "SELECT count(*) FROM users WHERE active = false", 
+        nativeQuery = true)
+    Page<User> findAllByActiveFalse(Pageable pageable);
+
+    /**
+     * Retrieves all users (active and inactive) bypassing the active=true restriction.
+     */
+    @org.springframework.data.jpa.repository.Query(
+        value = "SELECT * FROM users", 
+        countQuery = "SELECT count(*) FROM users", 
+        nativeQuery = true)
+    Page<User> findAllUsers(Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT count(*) FROM users", nativeQuery = true)
+    long countAllUsers();
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT count(*) FROM users WHERE active = false", nativeQuery = true)
+    long countInactiveUsers();
     
     /**
      * Added this quick validation method to check the prior existence
@@ -64,4 +82,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return True if the email already exists in the table, false otherwise.
      */
     boolean existsByEmail(String email);
+
+        /**
+     * Reactivates a soft-deleted user account by its email.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(value = "UPDATE users SET active = true, updated_at = CURRENT_TIMESTAMP WHERE email = :email", nativeQuery = true)
+    int activateUserByEmail(@org.springframework.data.repository.query.Param("email") String email);
+
 }

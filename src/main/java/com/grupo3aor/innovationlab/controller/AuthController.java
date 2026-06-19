@@ -164,4 +164,19 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "An error occurred while resetting your password."));
         }
     }
+
+        /**
+     * Completa o registo a partir de um link de convite.
+     */
+    @PostMapping("/accept-invite")
+    public ResponseEntity<?> acceptInvite(@Valid @RequestBody com.grupo3aor.innovationlab.dto.CompleteRegistrationRequest request, HttpServletRequest httpRequest) {
+        try {
+            String ipAddress = httpRequest.getRemoteAddr();
+            authService.completeRegistrationFromInvite(request, ipAddress);
+            return ResponseEntity.ok(Map.of("message", "Registration completed successfully. You can now login."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
 }

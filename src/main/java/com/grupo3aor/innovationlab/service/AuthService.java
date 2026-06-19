@@ -9,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import com.grupo3aor.innovationlab.repository.InvitationRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.grupo3aor.innovationlab.dto.LoginRequest;
@@ -38,6 +39,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
+    private final InvitationRepository invitationRepository;
 
     /**
      * Main constructor mapping core dependencies required for safe authorization lifecycles.
@@ -46,11 +48,14 @@ public class AuthService {
      * @param emailService Mail infrastructure module handling outbound notification links.
      * @param authenticationManager Infrastructure subsystem manager running standard authentication tasks.
      */
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService, AuthenticationManager authenticationManager) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService,
+        AuthenticationManager authenticationManager, InvitationRepository invitationRepository) {
+        
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.authenticationManager = authenticationManager;
+        this.invitationRepository = invitationRepository;
     }
 
     /**
@@ -292,4 +297,70 @@ public class AuthService {
         
         log.info("[AUDIT] Action: PASSWORD_RESET_SUCCESSFUL | Target Email: {}", user.getEmail());
     }
+
+        /**
+     * Admin-driven workflow to invite a new user to the system.
+     */
+        @Transactional
+    public void inviteUser(String email, String ipAddress, String adminEmail) {
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("This email is already registered in the system.");
+        }
+        
+        if (invitationRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("An invitation has already been sent to this email.");
+        }
+
+        String token = java.util.UUID.randomUUID().toString();
+
+        com.grupo3aor.innovationlab.domain.entity.Invitation invitation = com.grupo3aor.innovationlab.domain.entity.Invitation.builder()
+                .email(email)
+                .token(token)
+                .expiresAt(LocalDateTime.now().plusDays(7)) // Convite expira em 7 dias
+                .invitedBy(adminEmail)
+                .build();
+
+        invitationRepository.save(invitation);
+
+        emailService.sendInvitationEmail(email, token);
+        log.info("[AUDIT] Action: USER_INVITED | Target Email: {} | Operator: {}", email, adminEmail);
+    }
+
+        @Transactional
+    public void completeRegistrationFromInvite(com.grupo3aor.innovationlab.dto.CompleteRegistrationRequest request, String ipAddress) {
+        com.grupo3aor.innovationlab.domain.entity.Invitation invitation = invitationRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation token."));
+
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match. Please try again.");
+        }
+        
+        if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("This invitation has expired.");
+        }
+
+        if (userRepository.existsByEmail(invitation.getEmail())) {
+            throw new IllegalArgumentException("This email is already registered.");
+        }
+
+        User newUser = User.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .email(invitation.getEmail())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .perfil(PerfilEnum.USER) // O perfil base
+                .accountActivated(true) // Conta já ativada porque o convite serve de validação de email
+                .createdBy("INVITATION_FLOW")
+                .originIp(ipAddress)
+                .build();
+
+        userRepository.save(newUser);
+        
+        // Apaga o convite para que o link não possa ser usado novamente
+        invitationRepository.delete(invitation);
+        
+        log.info("[AUDIT] Action: REGISTRATION_COMPLETED_VIA_INVITE | User: {} | Origin IP: {}", newUser.getEmail(), ipAddress);
+    }
+
+
 }

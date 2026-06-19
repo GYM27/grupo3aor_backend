@@ -54,6 +54,11 @@ public class UserResponse {
     private boolean accountActivated;
 
     /**
+     * Operational state indicating if the user is currently active or soft-deleted.
+     */
+    private boolean active;
+
+    /**
      * Timestamp marking when the user profile was originally registered.
      */
     // I decided to include this specific creation timestamp in the outbound payload. 

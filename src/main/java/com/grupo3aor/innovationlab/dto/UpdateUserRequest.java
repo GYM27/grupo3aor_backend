@@ -2,6 +2,7 @@ package com.grupo3aor.innovationlab.dto;
 
 import com.grupo3aor.innovationlab.domain.enums.PerfilEnum;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,5 +21,17 @@ public class UpdateUserRequest {
     
     @NotNull(message = "Profile role cannot be null")
     private PerfilEnum perfil;
+
+    @NotNull(message = "First name is mandatory")
+    private String firstName;
+    
+    @NotNull(message = "Last name is mandatory")
+    private String lastName;
+
+    @NotNull(message = "Email is mandatory")
+    @Email(message = "Invalid email format")
+    private String email;
+
+    private Boolean active;
 
 }
