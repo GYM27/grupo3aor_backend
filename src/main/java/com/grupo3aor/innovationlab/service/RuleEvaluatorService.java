@@ -42,7 +42,7 @@ public class RuleEvaluatorService {
     @Transactional
     public void evaluateReading(PhysiologicalReading reading) throws Exception {
         
-        for (Rule rule : ruleRepository.findAll()) {
+        for (Rule rule : ruleRepository.findByActiveTrue()) {
             try {
                 // The Entity (Rule) makes the decision in an encapsulated manner (Rich Domain Model)
                 boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);

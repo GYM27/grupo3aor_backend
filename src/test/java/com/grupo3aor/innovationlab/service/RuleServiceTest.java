@@ -183,7 +183,7 @@ class RuleServiceTest {
         when(ruleRepository.findAll()).thenReturn(List.of(rule1, rule2));
 
         // ACT
-        List<RuleResponse> result = ruleService.getAllActiveRules();
+        List<RuleResponse> result = ruleService.getAllRules(null);
 
         // ASSERT
         assertThat(result).hasSize(2);
@@ -196,7 +196,7 @@ class RuleServiceTest {
     void getAllActiveRules_shouldReturnEmptyList_whenNoActiveRules() {
         when(ruleRepository.findAll()).thenReturn(List.of());
 
-        List<RuleResponse> result = ruleService.getAllActiveRules();
+        List<RuleResponse> result = ruleService.getAllRules(null);
 
         assertThat(result).isEmpty();
     }

@@ -26,6 +26,8 @@ public class RuleResponse {
 
     private UUID id;
     
+    private String name;
+    
     private Long systemId;
     
     private String expressionDsl;
@@ -35,5 +37,7 @@ public class RuleResponse {
     private String createdByUserEmail;
     
     private LocalDateTime createdAt;
+    
+    private boolean active;
 
 }

@@ -23,6 +23,9 @@ import lombok.AllArgsConstructor;
 @Builder
 public class RuleRequest {
 
+    @NotBlank(message = "Rule name cannot be empty")
+    private String name;
+
     @NotNull(message = "System ID cannot be empty")
     private Long systemId;
 

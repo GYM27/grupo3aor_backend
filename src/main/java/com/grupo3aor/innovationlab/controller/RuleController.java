@@ -40,12 +40,12 @@ public class RuleController {
     }
 
     /**
-     * Fetches the active rules list.
+     * Fetches rules, optionally filtering by active state via query parameter.
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<RuleResponse>> getAllActiveRules() {
-        return ResponseEntity.ok(ruleService.getAllActiveRules());
+    public ResponseEntity<List<RuleResponse>> getAllRules(@RequestParam(required = false) Boolean active) {
+        return ResponseEntity.ok(ruleService.getAllRules(active));
     }
 
     /**
@@ -57,6 +57,16 @@ public class RuleController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deactivateRule(@PathVariable UUID id) {
         ruleService.deactivateRule(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Re-activates a soft-deleted rule.
+     */
+    @PutMapping("/{id}/activate")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> activateRule(@PathVariable UUID id) {
+        ruleService.activateRule(id);
         return ResponseEntity.ok().build();
     }
 

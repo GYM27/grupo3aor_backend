@@ -32,7 +32,6 @@ import java.util.UUID;
 // I updated this interceptor to use 'active = false' for soft delete,
 // standardizing the naming across all entities (User, PhysiologicalSystem, ClinicalScenario all use 'active').
 @SQLDelete(sql = "UPDATE rules SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-@SQLRestriction("active = true")
 public class Rule extends Auditable {
 
     // =========================================================
@@ -46,8 +45,12 @@ public class Rule extends Auditable {
 
     // =========================================================
     // THE RULE LOGIC
+    // I added a name field to identify the rule in the frontend easily.
     // I used columnDefinition = "TEXT" because the DSL expression might be quite long.
     // =========================================================
+    @Column(name = "name")
+    private String name;
+
     @Column(name = "expression_dsl", columnDefinition = "TEXT")
     private String expressionDsl;
 

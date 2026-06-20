@@ -47,6 +47,7 @@ public class RuleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
 
         Rule rule = Rule.builder()
+                .name(request.getName())
                 .system(system)
                 .expressionDsl(request.getExpressionDsl())
                 .severity(request.getSeverity())
@@ -58,18 +59,25 @@ public class RuleService {
     }
 
     /**
-     * Lists all active rules (the ones that are not deleted).
+     * Lists rules optionally filtered by their active state.
      */
     @Transactional(readOnly = true)
-    public List<RuleResponse> getAllActiveRules() {
-        return ruleRepository.findAll().stream()
+    public List<RuleResponse> getAllRules(Boolean active) {
+        List<Rule> rules;
+        if (active == null) {
+            rules = ruleRepository.findAll();
+        } else {
+            rules = ruleRepository.findByActive(active);
+        }
+        
+        return rules.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     /**
      * Soft-deletes a rule by ID. 
-     * Because I added @SQLDelete in the Rule entity, this will just set deleted = true!
+     * Because I added @SQLDelete in the Rule entity, this will just set active = false!
      */
     @Transactional
     public void deactivateRule(UUID ruleId) {
@@ -77,6 +85,17 @@ public class RuleService {
             throw new ResourceNotFoundException("Rule not found with ID: " + ruleId);
         }
         ruleRepository.deleteById(ruleId);
+    }
+
+    /**
+     * Re-activates a soft-deleted rule.
+     */
+    @Transactional
+    public void activateRule(UUID ruleId) {
+        Rule rule = ruleRepository.findById(ruleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
+        rule.setActive(true);
+        ruleRepository.save(rule);
     }
 
     /**
@@ -91,6 +110,7 @@ public class RuleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
 
         rule.setSystem(system);
+        rule.setName(request.getName());
         rule.setExpressionDsl(request.getExpressionDsl());
         rule.setSeverity(request.getSeverity());
         // Fix: populate the audit field that was being silently ignored
@@ -108,11 +128,13 @@ public class RuleService {
     private RuleResponse mapToResponse(Rule rule) {
         return RuleResponse.builder()
                 .id(rule.getId())
+                .name(rule.getName())
                 .systemId(rule.getSystem() != null ? rule.getSystem().getId() : null)
                 .expressionDsl(rule.getExpressionDsl())
                 .severity(rule.getSeverity())
                 .createdByUserEmail(rule.getCreatedByUser() != null ? rule.getCreatedByUser().getEmail() : "Unknown")
                 .createdAt(rule.getCreatedAt())
+                .active(rule.isActive())
                 .build();
     }
 }

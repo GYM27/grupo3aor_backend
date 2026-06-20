@@ -16,6 +16,8 @@ import java.util.UUID;
 @Repository
 public interface RuleRepository extends JpaRepository<Rule, UUID> {
 
-
+    List<Rule> findByActiveTrue();
+    
+    List<Rule> findByActive(boolean active);
 
 }
