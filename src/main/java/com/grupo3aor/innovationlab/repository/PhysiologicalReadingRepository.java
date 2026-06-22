@@ -20,4 +20,21 @@ public interface PhysiologicalReadingRepository extends JpaRepository<Physiologi
      * @return a list of physiological readings
      */
     List<PhysiologicalReading> findBySimulation_Id(UUID simulationId);
+
+    /**
+     * Finds the first reading of a simulation to determine the exact base timestamp.
+     */
+    PhysiologicalReading findFirstBySimulation_IdOrderByTimestampAsc(UUID simulationId);
+
+    /**
+     * Bulk deletes readings that occur after a specific timestamp.
+     * Uses @Modifying and @Query to prevent N+1 select/delete problems.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("DELETE FROM PhysiologicalReading p WHERE p.simulation.id = :simId AND p.timestamp > :timestamp")
+    void bulkDeleteFutureReadings(
+            @org.springframework.data.repository.query.Param("simId") UUID simId, 
+            @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
+    );
 }
