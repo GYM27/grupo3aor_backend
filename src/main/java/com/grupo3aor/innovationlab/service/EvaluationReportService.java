@@ -62,9 +62,13 @@ public class EvaluationReportService {
             com.lowagie.text.Font textFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10);
             com.lowagie.text.Font boldFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10);
             
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
+
             document.add(new com.lowagie.text.Paragraph("VitalSim - Relatorio de Avaliacao", titleFont));
             document.add(new com.lowagie.text.Paragraph("Simulacao: " + simulation.getId(), textFont));
-            document.add(new com.lowagie.text.Paragraph("Data: " + java.time.LocalDateTime.now(), textFont));
+            document.add(new com.lowagie.text.Paragraph("Contexto da Avaliacao: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
+            document.add(new com.lowagie.text.Paragraph("Data: " + java.time.LocalDateTime.now().format(formatter), textFont));
             document.add(new com.lowagie.text.Paragraph("Intervalo Temporal: " + report.getIntervaloTemporal(), textFont));
             document.add(new com.lowagie.text.Paragraph("\n"));
             
@@ -80,18 +84,22 @@ public class EvaluationReportService {
             if (alerts == null || alerts.isEmpty()) {
                 document.add(new com.lowagie.text.Paragraph("Nenhum alerta registado durante esta simulacao.", textFont));
             } else {
-                com.lowagie.text.pdf.PdfPTable alertTable = new com.lowagie.text.pdf.PdfPTable(3);
+                com.lowagie.text.pdf.PdfPTable alertTable = new com.lowagie.text.pdf.PdfPTable(5);
                 alertTable.setWidthPercentage(100);
-                alertTable.setWidths(new float[]{1.5f, 1f, 3.5f});
+                alertTable.setWidths(new float[]{1.5f, 1f, 1.5f, 1f, 3f});
                 
-                alertTable.addCell(new com.lowagie.text.Phrase("Data/Hora", boldFont));
-                alertTable.addCell(new com.lowagie.text.Phrase("Severidade", boldFont));
-                alertTable.addCell(new com.lowagie.text.Phrase("Mensagem", boldFont));
+                alertTable.addCell(new com.lowagie.text.Phrase("Instante", boldFont));
+                alertTable.addCell(new com.lowagie.text.Phrase("Sistema", boldFont));
+                alertTable.addCell(new com.lowagie.text.Phrase("Regra", boldFont));
+                alertTable.addCell(new com.lowagie.text.Phrase("Alerta", boldFont));
+                alertTable.addCell(new com.lowagie.text.Phrase("Rationale Analítico", boldFont));
                 
                 for (com.grupo3aor.innovationlab.domain.entity.Alert a : alerts) {
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getCreatedAt() != null ? a.getCreatedAt().toString() : "N/A", textFont));
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule().getSeverity().name(), textFont));
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule().getExpressionDsl(), textFont));
+                    alertTable.addCell(new com.lowagie.text.Phrase(a.getCreatedAt() != null ? a.getCreatedAt().format(timeFormatter) : "N/A", textFont));
+                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A", textFont));
+                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule() != null ? a.getRule().getName() : "N/A", textFont));
+                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule() != null ? a.getRule().getSeverity().name() : "N/A", textFont));
+                    alertTable.addCell(new com.lowagie.text.Phrase(generateAnalyticalRationale(a), textFont));
                 }
                 document.add(alertTable);
             }
@@ -112,7 +120,7 @@ public class EvaluationReportService {
                 
                 readingTable.addCell(new com.lowagie.text.Phrase("Sinal Vital", boldFont));
                 readingTable.addCell(new com.lowagie.text.Phrase("Valor", boldFont));
-                readingTable.addCell(new com.lowagie.text.Phrase("Data/Hora", boldFont));
+                readingTable.addCell(new com.lowagie.text.Phrase("Hora", boldFont));
                 
                 // Limitar para não gerar um PDF de mil paginas (mostramos so as ultimas 20 leituras)
                 int limit = Math.min(readings.size(), 20);
@@ -120,7 +128,7 @@ public class EvaluationReportService {
                     com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading r = readings.get(i);
                     readingTable.addCell(new com.lowagie.text.Phrase(r.getHandle(), textFont));
                     readingTable.addCell(new com.lowagie.text.Phrase(r.getValue() + " " + r.getUnit(), textFont));
-                    readingTable.addCell(new com.lowagie.text.Phrase(r.getTimestamp().toString(), textFont));
+                    readingTable.addCell(new com.lowagie.text.Phrase(r.getTimestamp().format(timeFormatter), textFont));
                 }
                 document.add(readingTable);
             }
@@ -130,6 +138,30 @@ public class EvaluationReportService {
             return baos.toByteArray();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao gerar o documento PDF do Relatorio", e);
+        }
+    }
+
+    private String generateAnalyticalRationale(com.grupo3aor.innovationlab.domain.entity.Alert alert) {
+        if (alert.getRule() == null || alert.getRule().getExpressionDsl() == null) {
+            return "Ativação baseada nas regras configuradas.";
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.grupo3aor.innovationlab.dto.RuleCondition condition = mapper.readValue(alert.getRule().getExpressionDsl(), com.grupo3aor.innovationlab.dto.RuleCondition.class);
+            
+            String verb = "violou a condição";
+            if ("<".equals(condition.getOperator())) verb = "ficou abaixo do limite";
+            else if (">".equals(condition.getOperator())) verb = "superou o limite";
+            else if ("==".equals(condition.getOperator())) verb = "igualou o valor crítico";
+
+            return String.format("A métrica '%s' registou o valor %.2f, o que %s definido (%s %.2f).",
+                    condition.getMetric(),
+                    alert.getValueAtTrigger(),
+                    verb,
+                    condition.getOperator(),
+                    condition.getThreshold());
+        } catch (Exception e) {
+            return String.format("O valor %.2f disparou a condição analítica: %s", alert.getValueAtTrigger(), alert.getRule().getExpressionDsl());
         }
     }
 
