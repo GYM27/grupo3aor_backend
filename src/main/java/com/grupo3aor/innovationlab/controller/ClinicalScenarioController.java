@@ -62,6 +62,13 @@ public class ClinicalScenarioController {
             HttpServletRequest httpRequest) {
 
         try {
+            if (file.isEmpty() || !("application/json".equals(file.getContentType()))) {
+                return ResponseEntity.badRequest().body("Ficheiro inválido. Apenas ficheiros JSON são permitidos.");
+            }
+            if (file.getSize() > 5 * 1024 * 1024) { // Limite de 5MB
+                return ResponseEntity.badRequest().body("O ficheiro JSON é demasiado grande (limite: 5MB).");
+            }
+
             // 1. A Magia do Jackson: Lê o input stream do ficheiro para o DTO
             ClinicalScenarioRequest request = objectMapper.readValue(file.getInputStream(), ClinicalScenarioRequest.class);
 

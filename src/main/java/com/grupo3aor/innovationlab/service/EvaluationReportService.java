@@ -38,6 +38,10 @@ public class EvaluationReportService {
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
 
+        // Remove any existing report for this simulation to prevent NonUniqueResultException
+        repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simulation.getId()).ifPresent(repository::delete);
+        repository.flush(); // Ensure deletion is committed before inserting
+
         EvaluationReport report = mapper.toEntity(dto, simulation);
 
         report.setCreatedBy(userEmail);
@@ -69,7 +73,20 @@ public class EvaluationReportService {
             document.add(new com.lowagie.text.Paragraph("Simulacao: " + simulation.getId(), textFont));
             document.add(new com.lowagie.text.Paragraph("Contexto da Avaliacao: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
             document.add(new com.lowagie.text.Paragraph("Data: " + java.time.LocalDateTime.now().format(formatter), textFont));
-            document.add(new com.lowagie.text.Paragraph("Intervalo Temporal: " + report.getIntervaloTemporal(), textFont));
+            
+            // Computar Intervalo Temporal Real
+            java.util.List<com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading> readings = readingRepository.findBySimulation_Id(simulation.getId());
+            String intervaloStr = report.getIntervaloTemporal();
+            if (readings != null && !readings.isEmpty()) {
+                java.time.LocalDateTime first = readings.get(0).getTimestamp();
+                java.time.LocalDateTime last = readings.get(readings.size() - 1).getTimestamp();
+                long seconds = java.time.Duration.between(first, last).getSeconds();
+                long minutes = seconds / 60;
+                long secs = seconds % 60;
+                intervaloStr = String.format("%02d:%02d minutos de registo", minutes, secs);
+            }
+            document.add(new com.lowagie.text.Paragraph("Intervalo Temporal: " + intervaloStr, textFont));
+            
             document.add(new com.lowagie.text.Paragraph("\n"));
             
             document.add(new com.lowagie.text.Paragraph("Resumo e Justificacao Analitica", subtitleFont));
@@ -110,7 +127,6 @@ public class EvaluationReportService {
             document.add(new com.lowagie.text.Paragraph("Resumo de Leituras Fisiologicas", subtitleFont));
             document.add(new com.lowagie.text.Paragraph("\n"));
             
-            java.util.List<com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading> readings = readingRepository.findBySimulation_Id(simulation.getId());
             if (readings == null || readings.isEmpty()) {
                 document.add(new com.lowagie.text.Paragraph("Nenhuma leitura captada.", textFont));
             } else {
@@ -167,7 +183,7 @@ public class EvaluationReportService {
 
     @Transactional(readOnly = true)
     public EvaluationReport getRawReportBySimulation(UUID simulationId) {
-        return repository.findBySimulation_Id(simulationId)
+        return repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simulationId)
                 .orElseThrow(() -> new RuntimeException("Evaluation report missing for target simulation context"));
     }
 }

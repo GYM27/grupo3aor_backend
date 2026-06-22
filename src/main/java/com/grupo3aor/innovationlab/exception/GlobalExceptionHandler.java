@@ -10,12 +10,15 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Global exception handler that intercepts exceptions thrown by controllers and
  * translates them into standardized HTTP responses. This eliminates the need for
  * repetitive try/catch blocks in every controller method.
  */
 @ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -52,6 +55,7 @@ public class GlobalExceptionHandler {
     // Optional fallback for unexpected runtime exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGenericException(Exception ex) {
+        log.error("[FATAL ERROR] Exceção interna não tratada apanhada pelo interceptor global:", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected internal error occurred.");
     }
 }

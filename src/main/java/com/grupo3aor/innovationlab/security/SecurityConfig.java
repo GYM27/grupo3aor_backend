@@ -10,6 +10,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -46,10 +48,11 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             // CSRF (Cross-Site Request Forgery) protection
-            // Disabled for the H2 console and all API routes (/api/**), 
-            // since REST APIs (and external medical devices sending data) do not use browser CSRF tokens.
+            // Enabled using CookieCsrfTokenRepository to allow React to read the token and send it back
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/h2-console/**", "/api/**")
+                .ignoringRequestMatchers("/h2-console/**", "/api/auth/**", "/api/ws/**", "/ws/**", "/actuator/**")
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
             )
 
             // Configure X-Frame-Options to allow H2 Console to use iframes internally.
@@ -108,7 +111,7 @@ public class SecurityConfig {
         // Allows essential HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allows sending headers in the request
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type", "X-XSRF-TOKEN"));
         // Allows sending credentials (cookies, authentication headers)
         configuration.setAllowCredentials(true);
         
