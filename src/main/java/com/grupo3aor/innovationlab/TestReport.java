@@ -8,7 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
-@Component
+// @Component
 public class TestReport implements CommandLineRunner {
 
     private final EvaluationReportService service;

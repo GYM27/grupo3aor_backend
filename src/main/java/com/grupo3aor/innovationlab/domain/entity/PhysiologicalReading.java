@@ -53,6 +53,10 @@ public class PhysiologicalReading extends Auditable {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
+    @Column(name = "active", nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

@@ -50,11 +50,12 @@ public class PhysiologicalReadingController {
      * @return A ResponseEntity containing the saved PhysiologicalReadingDTO
      */
     @PostMapping("/stream")
-    public ResponseEntity<PhysiologicalReadingDTO> postReadingStream(
+    public ResponseEntity<?> postReadingStream(
             @Valid @RequestBody PhysiologicalReadingDTO dto,
             Authentication authentication,
             HttpServletRequest request) {
-        return ResponseEntity.ok(service.createReading(dto, authentication.getName(), request.getRemoteAddr()));
+        service.createReadingAsync(dto, authentication.getName(), request.getRemoteAddr());
+        return ResponseEntity.accepted().build();
     }
 
     /**
@@ -78,15 +79,9 @@ public class PhysiologicalReadingController {
             String userEmail = authentication.getName();
             String ipAddress = request.getRemoteAddr();
 
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
-                try {
-                    service.createReadingBatch(readings, userEmail, ipAddress);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
+            service.createReadingBatch(readings, userEmail, ipAddress);
 
-            return ResponseEntity.accepted().body(java.util.Map.of("message", "Batch upload accepted and processing in background"));
+            return ResponseEntity.ok(java.util.Map.of("message", "Batch upload accepted and processed successfully."));
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to parse CSV file: " + e.getMessage());
         }

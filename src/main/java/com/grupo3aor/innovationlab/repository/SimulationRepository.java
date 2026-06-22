@@ -15,6 +15,9 @@ import java.util.UUID;
 @Repository
 public interface SimulationRepository extends JpaRepository<Simulation, UUID> {
 
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Simulation s LEFT JOIN FETCH s.scenario WHERE s.id = :id")
+    java.util.Optional<Simulation> findById(@org.springframework.data.repository.query.Param("id") UUID id);
+
     /**
      * I created this custom query so we can easily fetch simulations based on their current status.
      * Perfect for building dashboards showing "Running Simulations"!
@@ -31,6 +34,7 @@ public interface SimulationRepository extends JpaRepository<Simulation, UUID> {
      * @param statuses Collection of statuses to match
      * @return List of matching simulations
      */
-    List<Simulation> findAllByStatusIn(Collection<SimulationStatus> statuses);
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Simulation s JOIN FETCH s.scenario WHERE s.status IN :statuses")
+    List<Simulation> findAllByStatusIn(@org.springframework.data.repository.query.Param("statuses") Collection<SimulationStatus> statuses);
 
 }

@@ -7,8 +7,26 @@ import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.mapper.SimulationMapper;
 import com.grupo3aor.innovationlab.repository.EvaluationReportRepository;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
+import com.grupo3aor.innovationlab.domain.entity.Alert;
+import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
+import com.grupo3aor.innovationlab.dto.RuleCondition;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.io.ByteArrayOutputStream;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -56,67 +74,67 @@ public class EvaluationReportService {
     }
 
     private byte[] generatePdfBytes(EvaluationReport report, Simulation simulation) {
-        try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
-            com.lowagie.text.Document document = new com.lowagie.text.Document();
-            com.lowagie.text.pdf.PdfWriter.getInstance(document, baos);
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, baos);
             document.open();
             
-            com.lowagie.text.Font titleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 18);
-            com.lowagie.text.Font subtitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 14);
-            com.lowagie.text.Font textFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10);
-            com.lowagie.text.Font boldFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10);
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14);
+            Font textFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+            Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
             
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-            java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-            document.add(new com.lowagie.text.Paragraph("VitalSim - Relatorio de Avaliacao", titleFont));
-            document.add(new com.lowagie.text.Paragraph("Simulacao: " + simulation.getId(), textFont));
-            document.add(new com.lowagie.text.Paragraph("Contexto da Avaliacao: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
-            document.add(new com.lowagie.text.Paragraph("Data: " + java.time.LocalDateTime.now().format(formatter), textFont));
+            document.add(new Paragraph("VitalSim - Relatorio de Avaliacao", titleFont));
+            document.add(new Paragraph("Simulacao: " + simulation.getId(), textFont));
+            document.add(new Paragraph("Contexto da Avaliacao: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
+            document.add(new Paragraph("Data: " + LocalDateTime.now().format(formatter), textFont));
             
             // Computar Intervalo Temporal Real
-            java.util.List<com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading> readings = readingRepository.findBySimulation_Id(simulation.getId());
+            List<PhysiologicalReading> readings = readingRepository.findBySimulation_IdOrderByTimestampAsc(simulation.getId());
             String intervaloStr = report.getIntervaloTemporal();
             if (readings != null && !readings.isEmpty()) {
-                java.time.LocalDateTime first = readings.get(0).getTimestamp();
-                java.time.LocalDateTime last = readings.get(readings.size() - 1).getTimestamp();
-                long seconds = java.time.Duration.between(first, last).getSeconds();
+                LocalDateTime first = readings.get(0).getTimestamp();
+                LocalDateTime last = readings.get(readings.size() - 1).getTimestamp();
+                long seconds = Duration.between(first, last).getSeconds();
                 long minutes = seconds / 60;
                 long secs = seconds % 60;
                 intervaloStr = String.format("%02d:%02d minutos de registo", minutes, secs);
             }
-            document.add(new com.lowagie.text.Paragraph("Intervalo Temporal: " + intervaloStr, textFont));
+            document.add(new Paragraph("Intervalo Temporal: " + intervaloStr, textFont));
             
-            document.add(new com.lowagie.text.Paragraph("\n"));
+            document.add(new Paragraph("\n"));
             
-            document.add(new com.lowagie.text.Paragraph("Resumo e Justificacao Analitica", subtitleFont));
-            document.add(new com.lowagie.text.Paragraph(report.getRationaleText(), textFont));
-            document.add(new com.lowagie.text.Paragraph("\n"));
+            document.add(new Paragraph("Resumo e Justificacao Analitica", subtitleFont));
+            document.add(new Paragraph(report.getRationaleText(), textFont));
+            document.add(new Paragraph("\n"));
 
             // 1. Tabela de Alertas (Registo de Eventos)
-            document.add(new com.lowagie.text.Paragraph("Registo de Alertas (Eventos Clinicos)", subtitleFont));
-            document.add(new com.lowagie.text.Paragraph("\n"));
+            document.add(new Paragraph("Registo de Alertas (Eventos Clinicos)", subtitleFont));
+            document.add(new Paragraph("\n"));
             
-            java.util.List<com.grupo3aor.innovationlab.domain.entity.Alert> alerts = alertRepository.findBySimulation_Id(simulation.getId());
+            List<Alert> alerts = alertRepository.findBySimulation_Id(simulation.getId());
             if (alerts == null || alerts.isEmpty()) {
-                document.add(new com.lowagie.text.Paragraph("Nenhum alerta registado durante esta simulacao.", textFont));
+                document.add(new Paragraph("Nenhum alerta registado durante esta simulacao.", textFont));
             } else {
-                com.lowagie.text.pdf.PdfPTable alertTable = new com.lowagie.text.pdf.PdfPTable(5);
+                PdfPTable alertTable = new PdfPTable(5);
                 alertTable.setWidthPercentage(100);
                 alertTable.setWidths(new float[]{1.5f, 1f, 1.5f, 1f, 3f});
                 
-                alertTable.addCell(new com.lowagie.text.Phrase("Instante", boldFont));
-                alertTable.addCell(new com.lowagie.text.Phrase("Sistema", boldFont));
-                alertTable.addCell(new com.lowagie.text.Phrase("Regra", boldFont));
-                alertTable.addCell(new com.lowagie.text.Phrase("Alerta", boldFont));
-                alertTable.addCell(new com.lowagie.text.Phrase("Rationale Analítico", boldFont));
+                alertTable.addCell(new Phrase("Instante", boldFont));
+                alertTable.addCell(new Phrase("Sistema", boldFont));
+                alertTable.addCell(new Phrase("Regra", boldFont));
+                alertTable.addCell(new Phrase("Alerta", boldFont));
+                alertTable.addCell(new Phrase("Rationale Analítico", boldFont));
                 
-                for (com.grupo3aor.innovationlab.domain.entity.Alert a : alerts) {
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getCreatedAt() != null ? a.getCreatedAt().format(timeFormatter) : "N/A", textFont));
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A", textFont));
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule() != null ? a.getRule().getName() : "N/A", textFont));
-                    alertTable.addCell(new com.lowagie.text.Phrase(a.getRule() != null ? a.getRule().getSeverity().name() : "N/A", textFont));
-                    alertTable.addCell(new com.lowagie.text.Phrase(generateAnalyticalRationale(a), textFont));
+                for (Alert a : alerts) {
+                    alertTable.addCell(new Phrase(a.getCreatedAt() != null ? a.getCreatedAt().format(timeFormatter) : "N/A", textFont));
+                    alertTable.addCell(new Phrase(a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A", textFont));
+                    alertTable.addCell(new Phrase(a.getRule() != null ? a.getRule().getName() : "N/A", textFont));
+                    alertTable.addCell(new Phrase(a.getRule() != null ? a.getRule().getSeverity().name() : "N/A", textFont));
+                    alertTable.addCell(new Phrase(generateAnalyticalRationale(a), textFont));
                 }
                 document.add(alertTable);
             }
@@ -124,27 +142,27 @@ public class EvaluationReportService {
             document.add(new com.lowagie.text.Paragraph("\n"));
 
             // 2. Tabela de Leituras Fisiologicas (Resumo / Amostra)
-            document.add(new com.lowagie.text.Paragraph("Resumo de Leituras Fisiologicas", subtitleFont));
-            document.add(new com.lowagie.text.Paragraph("\n"));
+            document.add(new Paragraph("Resumo de Leituras Fisiologicas", subtitleFont));
+            document.add(new Paragraph("\n"));
             
             if (readings == null || readings.isEmpty()) {
-                document.add(new com.lowagie.text.Paragraph("Nenhuma leitura captada.", textFont));
+                document.add(new Paragraph("Nenhuma leitura captada.", textFont));
             } else {
-                com.lowagie.text.pdf.PdfPTable readingTable = new com.lowagie.text.pdf.PdfPTable(3);
+                PdfPTable readingTable = new PdfPTable(3);
                 readingTable.setWidthPercentage(100);
                 readingTable.setWidths(new float[]{2f, 2f, 1.5f});
                 
-                readingTable.addCell(new com.lowagie.text.Phrase("Sinal Vital", boldFont));
-                readingTable.addCell(new com.lowagie.text.Phrase("Valor", boldFont));
-                readingTable.addCell(new com.lowagie.text.Phrase("Hora", boldFont));
+                readingTable.addCell(new Phrase("Sinal Vital", boldFont));
+                readingTable.addCell(new Phrase("Valor", boldFont));
+                readingTable.addCell(new Phrase("Hora", boldFont));
                 
                 // Limitar para não gerar um PDF de mil paginas (mostramos so as ultimas 20 leituras)
                 int limit = Math.min(readings.size(), 20);
                 for (int i = readings.size() - limit; i < readings.size(); i++) {
-                    com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading r = readings.get(i);
-                    readingTable.addCell(new com.lowagie.text.Phrase(r.getHandle(), textFont));
-                    readingTable.addCell(new com.lowagie.text.Phrase(r.getValue() + " " + r.getUnit(), textFont));
-                    readingTable.addCell(new com.lowagie.text.Phrase(r.getTimestamp().format(timeFormatter), textFont));
+                    PhysiologicalReading r = readings.get(i);
+                    readingTable.addCell(new Phrase(r.getHandle(), textFont));
+                    readingTable.addCell(new Phrase(r.getValue() + " " + r.getUnit(), textFont));
+                    readingTable.addCell(new Phrase(r.getTimestamp().format(timeFormatter), textFont));
                 }
                 document.add(readingTable);
             }
@@ -157,13 +175,13 @@ public class EvaluationReportService {
         }
     }
 
-    private String generateAnalyticalRationale(com.grupo3aor.innovationlab.domain.entity.Alert alert) {
+    private String generateAnalyticalRationale(Alert alert) {
         if (alert.getRule() == null || alert.getRule().getExpressionDsl() == null) {
             return "Ativação baseada nas regras configuradas.";
         }
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            com.grupo3aor.innovationlab.dto.RuleCondition condition = mapper.readValue(alert.getRule().getExpressionDsl(), com.grupo3aor.innovationlab.dto.RuleCondition.class);
+            ObjectMapper mapper = new ObjectMapper();
+            RuleCondition condition = mapper.readValue(alert.getRule().getExpressionDsl(), RuleCondition.class);
             
             String verb = "violou a condição";
             if ("<".equals(condition.getOperator())) verb = "ficou abaixo do limite";

@@ -1,5 +1,6 @@
 package com.grupo3aor.innovationlab.controller;
 
+import com.grupo3aor.innovationlab.audit.AuditableAction;
 import com.grupo3aor.innovationlab.dto.RuleRequest;
 import com.grupo3aor.innovationlab.dto.RuleResponse;
 import com.grupo3aor.innovationlab.service.RuleService;
@@ -32,6 +33,7 @@ public class RuleController {
      * We extract the email from the Authentication token to guarantee security.
      */
     @PostMapping
+    @AuditableAction(action = "CREATE_RULE")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> createRule(@Valid @RequestBody RuleRequest request, Authentication authentication) {
         String operatorEmail = authentication.getName();
@@ -54,6 +56,7 @@ public class RuleController {
      * It maps to a DELETE request to keep standard REST semantics, but data is NOT destroyed!
      */
     @DeleteMapping("/{id}")
+    @AuditableAction(action = "DEACTIVATE_RULE")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deactivateRule(@PathVariable UUID id) {
         ruleService.deactivateRule(id);
@@ -64,6 +67,7 @@ public class RuleController {
      * Re-activates a soft-deleted rule.
      */
     @PutMapping("/{id}/activate")
+    @AuditableAction(action = "ACTIVATE_RULE")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> activateRule(@PathVariable UUID id) {
         ruleService.activateRule(id);
@@ -74,6 +78,7 @@ public class RuleController {
      * Updates an existing rule.
      */
     @PutMapping("/{id}")
+    @AuditableAction(action = "UPDATE_RULE")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> updateRule(@PathVariable UUID id, @Valid @RequestBody RuleRequest request, Authentication authentication) {
         String operatorEmail = authentication.getName();

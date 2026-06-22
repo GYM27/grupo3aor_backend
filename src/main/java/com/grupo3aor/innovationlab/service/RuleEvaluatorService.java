@@ -84,4 +84,61 @@ public class RuleEvaluatorService {
             }
         }
     }
+
+    /**
+     * Evaluates a batch of physiological readings optimally, minimizing database hits.
+     * Prevents N+1 query problem by caching the active alert state in memory for the duration of the batch.
+     *
+     * @param readings The list of physiological readings to be evaluated
+     */
+    public void evaluateReadingsBatch(java.util.List<PhysiologicalReading> readings) {
+        if (readings == null || readings.isEmpty()) return;
+        
+        java.util.List<Rule> activeRules = ruleRepository.findByActiveTrue();
+        if (activeRules.isEmpty()) return;
+
+        // In-memory cache to track which rules have already triggered an active alert for the simulation
+        java.util.Set<String> activeAlertsCache = new java.util.HashSet<>();
+        
+        com.grupo3aor.innovationlab.domain.entity.Simulation currentSim = readings.get(0).getSimulation();
+        // Since we check the DB only once per simulation, this makes 10,000 checks drop to 1.
+        for (Rule rule : activeRules) {
+            boolean exists = alertRepository.existsBySimulationAndRuleAndStatus(currentSim, rule, AlertStatus.ATIVO);
+            if (exists) {
+                activeAlertsCache.add(currentSim.getId().toString() + "_" + rule.getId().toString());
+            }
+        }
+
+        java.util.List<Alert> newAlertsToSave = new java.util.ArrayList<>();
+
+        for (PhysiologicalReading reading : readings) {
+            for (Rule rule : activeRules) {
+                try {
+                    boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
+
+                    if (isTriggered) {
+                        String cacheKey = reading.getSimulation().getId().toString() + "_" + rule.getId().toString();
+                        if (!activeAlertsCache.contains(cacheKey)) {
+                            Alert newAlert = Alert.builder()
+                                .simulation(reading.getSimulation())
+                                .rule(rule)
+                                .status(AlertStatus.ATIVO)
+                                .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
+                                .build();
+                            
+                            newAlertsToSave.add(newAlert);
+                            activeAlertsCache.add(cacheKey); // Mark as already alerting in cache
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to parse or evaluate YAML rule during batch: {}", rule.getId(), e);
+                }
+            }
+        }
+
+        // Save all newly generated alerts in one batch
+        if (!newAlertsToSave.isEmpty()) {
+            alertRepository.saveAll(newAlertsToSave);
+        }
+    }
 }

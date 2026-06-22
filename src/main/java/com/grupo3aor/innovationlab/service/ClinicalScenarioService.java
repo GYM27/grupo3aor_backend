@@ -79,15 +79,12 @@ public class ClinicalScenarioService {
      * @param operatorEmail Administrator issuing the deletion command.
      */
     @Transactional
-    public void deleteScenario(Long id, String operatorEmail) {
+    public void deleteScenario(Long id) {
         ClinicalScenario scenario = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
 
         // Fix: Executing a true Soft Delete
         scenario.setActive(false); 
-        scenario.setUpdatedBy(operatorEmail);
-
-        log.info("[AUDIT] Action: SCENARIO_SOFT_DELETED | Target ID: {} | Operator: {}", id, operatorEmail);
     }
 
     /**
@@ -104,13 +101,12 @@ public class ClinicalScenarioService {
      * Updates an existing clinical scenario.
      */
     @Transactional
-    public ClinicalScenarioResponse updateScenario(Long id, ClinicalScenarioRequest request, String operatorEmail, String originIp) {
+    public ClinicalScenarioResponse updateScenario(Long id, ClinicalScenarioRequest request) {
         ClinicalScenario scenario = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Scenario not found with ID: " + id));
 
         scenario.setName(request.getName());
         scenario.setDescription(request.getDescription());
-        scenario.setUpdatedBy(operatorEmail);
 
         try {
             if (request.getMetrics() != null) {
@@ -121,9 +117,6 @@ public class ClinicalScenarioService {
         }
 
         // O repository.save(scenario) foi removido. O JPA Dirty Checking fará o update automático.
-
-        log.info("[AUDIT] Action: SCENARIO_UPDATED | Target ID: {} | Operator: {} | IP: {}", 
-                 scenario.getId(), operatorEmail, originIp);
 
         return mapToResponse(scenario);
     }

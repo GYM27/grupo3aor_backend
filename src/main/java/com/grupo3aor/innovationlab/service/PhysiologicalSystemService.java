@@ -82,15 +82,13 @@ public class PhysiologicalSystemService {
      * @param operatorEmail Administrator issuing the deletion command.
      */
     @Transactional
-    public void deleteSystem(Long id, String operatorEmail) {
+    public void deleteSystem(Long id) {
         PhysiologicalSystem system = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
 
         // The @SQLDelete annotation on the entity model intercepts this instruction
         // and translates it into an UPDATE statement, securing historical data.
         repository.delete(system);
-
-        log.info("[AUDIT] Action: SYSTEM_SOFT_DELETED | Target ID: {} | Operator: {}", id, operatorEmail);
     }
 
     /**
@@ -107,7 +105,7 @@ public class PhysiologicalSystemService {
      * Updates an existing physiological system.
      */
     @Transactional
-    public PhysiologicalSystemResponse updateSystem(Long id, PhysiologicalSystemRequest request, String operatorEmail, String originIp) {
+    public PhysiologicalSystemResponse updateSystem(Long id, PhysiologicalSystemRequest request) {
         PhysiologicalSystem system = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("System not found with ID: " + id));
 
@@ -117,12 +115,8 @@ public class PhysiologicalSystemService {
         }
 
         system.setSystemName(request.getSystemName());
-        system.setUpdatedBy(operatorEmail);
 
         PhysiologicalSystem updatedSystem = repository.save(system);
-
-        log.info("[AUDIT] Action: SYSTEM_UPDATED | Target ID: {} | Operator: {} | IP: {}", 
-                 updatedSystem.getId(), operatorEmail, originIp);
 
         return mapToResponse(updatedSystem);
     }

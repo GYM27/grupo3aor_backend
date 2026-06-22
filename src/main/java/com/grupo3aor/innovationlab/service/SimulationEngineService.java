@@ -6,7 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.UUID;
 
 
 import java.time.Duration;
@@ -35,19 +37,9 @@ public class SimulationEngineService {
     private final SimulationRepository simulationRepository;
     private final PhysiologicalReadingService physiologicalReadingService;
     private final ObjectMapper objectMapper;
-    private final JdbcTemplate jdbcTemplate;
 
-    @PostConstruct
-    public void fixDatabaseSchema() {
-        try {
-            // Drop the old status column which has a strict CHECK constraint that causes 500 errors
-            // on new inserts because it was left behind by Hibernate.
-            jdbcTemplate.execute("ALTER TABLE simulations DROP COLUMN IF EXISTS status");
-            System.out.println("[DB FIX] Successfully dropped old 'status' column.");
-        } catch (Exception e) {
-            System.out.println("[DB FIX] Could not drop old 'status' column: " + e.getMessage());
-        }
-    }
+    // Cache to hold parsed JSON payloads, avoiding ObjectMapper overhead every second
+    private final ConcurrentHashMap<UUID, List<MetricDTO>> metricsCache = new ConcurrentHashMap<>();
 
     // I added this counter to avoid polling the database when no simulations are active
     private final AtomicInteger activeSimulationsCount = new AtomicInteger(0);
@@ -96,7 +88,6 @@ public class SimulationEngineService {
 
     // I set this method to fire every 1 second to provide smooth playback of the JSON metrics
     @Scheduled(fixedRate = 1000)
-    @Transactional
     public void generateContinuousData() {
         // I added this short-circuit to save database hits if no simulation is active!
         if (activeSimulationsCount.get() == 0) {
@@ -121,7 +112,14 @@ public class SimulationEngineService {
         }
 
         try {
-            List<MetricDTO> metrics = objectMapper.readValue(payload, new TypeReference<List<MetricDTO>>() {});
+            List<MetricDTO> metrics = metricsCache.computeIfAbsent(sim.getId(), id -> {
+                try {
+                    return objectMapper.readValue(payload, new TypeReference<List<MetricDTO>>() {});
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            
             if (metrics.isEmpty()) {
                 finalizeSimulation(sim);
                 return;
@@ -143,6 +141,7 @@ public class SimulationEngineService {
             Instant firstTimestamp = Instant.parse(metrics.get(0).getTimestamp());
 
             boolean hasAdvanced = false;
+            List<PhysiologicalReadingDTO> batchToInsert = new ArrayList<>();
 
             // I process all metrics that are "due" up to this elapsed time
             while (currentIndex < metrics.size()) {
@@ -165,10 +164,14 @@ public class SimulationEngineService {
                         .timestamp(LocalDateTime.ofInstant(metricInstant, ZoneId.systemDefault()))
                         .build();
 
-                physiologicalReadingService.createReading(dto, "engine@innovationlab.com", "127.0.0.1");
+                batchToInsert.add(dto);
                 
                 currentIndex++;
                 hasAdvanced = true;
+            }
+            
+            if (!batchToInsert.isEmpty()) {
+                physiologicalReadingService.createReadingBatch(batchToInsert, "engine@innovationlab.com", "127.0.0.1");
             }
 
             // If I actually processed anything, I save the new progress index
@@ -192,5 +195,6 @@ public class SimulationEngineService {
         sim.setEndedAt(LocalDateTime.now());
         simulationRepository.save(sim);
         decrementActiveSimulations();
+        metricsCache.remove(sim.getId());
     }
 }
