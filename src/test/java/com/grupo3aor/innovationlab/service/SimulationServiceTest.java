@@ -166,7 +166,7 @@ class SimulationServiceTest {
         when(simulationRepository.save(any(Simulation.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // ACT
-        SimulationResponse response = simulationService.stopSimulation(simId);
+        SimulationResponse response = simulationService.stopSimulation(simId, null);
 
         // ASSERT
         assertThat(response.getStatus()).isEqualTo(SimulationStatus.FINALIZADA);
@@ -190,7 +190,7 @@ class SimulationServiceTest {
         when(simulationRepository.findById(simId)).thenReturn(Optional.of(finishedSim));
 
         // ACT & ASSERT
-        assertThatThrownBy(() -> simulationService.stopSimulation(simId))
+        assertThatThrownBy(() -> simulationService.stopSimulation(simId, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already finalized or canceled");
 
@@ -214,7 +214,7 @@ class SimulationServiceTest {
         when(simulationRepository.findById(simId)).thenReturn(Optional.of(canceledSim));
 
         // ACT & ASSERT
-        assertThatThrownBy(() -> simulationService.stopSimulation(simId))
+        assertThatThrownBy(() -> simulationService.stopSimulation(simId, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already finalized or canceled");
 
@@ -227,7 +227,7 @@ class SimulationServiceTest {
         UUID nonExistentId = UUID.randomUUID();
         when(simulationRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> simulationService.stopSimulation(nonExistentId))
+        assertThatThrownBy(() -> simulationService.stopSimulation(nonExistentId, null))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Simulation not found");
     }
