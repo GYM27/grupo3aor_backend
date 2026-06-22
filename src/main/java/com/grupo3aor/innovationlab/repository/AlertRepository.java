@@ -36,7 +36,7 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
      */
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Query("DELETE FROM Alert a WHERE a.simulation.id = :simId AND a.timestamp > :timestamp")
+    @org.springframework.data.jpa.repository.Query("DELETE FROM Alert a WHERE a.simulation.id = :simId AND a.createdAt > :timestamp")
     void bulkDeleteFutureAlerts(
             @org.springframework.data.repository.query.Param("simId") UUID simId, 
             @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
