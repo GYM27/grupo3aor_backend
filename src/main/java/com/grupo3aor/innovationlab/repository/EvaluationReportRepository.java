@@ -19,5 +19,5 @@ public interface EvaluationReportRepository extends JpaRepository<EvaluationRepo
      * @param simulationId the unique identifier of the simulation
      * @return an Optional containing the evaluation report if found
      */
-    Optional<EvaluationReport> findBySimulation_Id(UUID simulationId);
+    Optional<EvaluationReport> findFirstBySimulation_IdOrderByCreatedAtDesc(UUID simulationId);
 }

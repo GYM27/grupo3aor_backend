@@ -1,5 +1,6 @@
 package com.grupo3aor.innovationlab.controller;
 
+import com.grupo3aor.innovationlab.audit.AuditableAction;
 import com.grupo3aor.innovationlab.dto.InviteUserRequest;
 import com.grupo3aor.innovationlab.dto.UpdateUserRequest;
 import com.grupo3aor.innovationlab.dto.UserResponse;
@@ -81,6 +82,7 @@ public class UserController {
      * Updates a user's profile (Name, Surname, and Role).
      */
     @PutMapping("/{email}/role")
+    @AuditableAction(action = "UPDATE_USER_ROLE")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<UserResponse> updateUserRole(
             @PathVariable String email,
@@ -96,6 +98,7 @@ public class UserController {
      * Deactivates (soft-deletes) a user by setting their active status to false.
      */
     @DeleteMapping("/{email}")
+    @AuditableAction(action = "SOFT_DELETE_USER")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> softDeleteUser(@PathVariable String email, Authentication authentication) {
         String adminEmail = authentication.getName();
@@ -107,6 +110,7 @@ public class UserController {
      * Reactivates a deactivated user by setting their active status to true.
      */
     @PutMapping("/{email}/activate")
+    @AuditableAction(action = "ACTIVATE_USER")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> activateUser(@PathVariable String email, Authentication authentication) {
         String adminEmail = authentication.getName();
@@ -116,6 +120,7 @@ public class UserController {
 
 
     @PostMapping("/invite")
+    @AuditableAction(action = "INVITE_USER")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> inviteUser(
             @Valid @RequestBody InviteUserRequest request, 

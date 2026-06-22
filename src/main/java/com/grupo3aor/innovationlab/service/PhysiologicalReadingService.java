@@ -57,6 +57,24 @@ public class PhysiologicalReadingService {
         return savedDto;
     }
 
+    @org.springframework.scheduling.annotation.Async("telemetryExecutor")
+    public void createReadingAsync(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
+        try {
+            createReading(dto, userEmail, ipAddress);
+        } catch (Exception e) {
+            log.error("Failed to process async telemetry reading: {}", e.getMessage());
+        }
+    }
+
+    @org.springframework.scheduling.annotation.Async("telemetryExecutor")
+    public void createReadingBatchAsync(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
+        try {
+            createReadingBatch(dtos, userEmail, ipAddress);
+        } catch (Exception e) {
+            log.error("Failed to process async telemetry batch: {}", e.getMessage());
+        }
+    }
+
     @Transactional
     public List<PhysiologicalReadingDTO> createReadingBatch(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
         if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
@@ -83,9 +101,15 @@ public class PhysiologicalReadingService {
         // 3. Save EVERYTHING at once (True Batch Insert)
         List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
 
-        // 4. Publish to WebSockets and evaluate rules for the saved readings
+        // 4. Evaluate rules locally in an optimized batch without N+1 query problems and without flooding WebSockets
+        try {
+            ruleEvaluatorService.evaluateReadingsBatch(savedReadings);
+        } catch (Exception e) {
+            log.error("Failed to evaluate rules for batch: {}", e.getMessage(), e);
+        }
+
         return savedReadings.stream()
-                .map(this::publishAndEvaluate)
+                .map(mapper::toDto)
                 .toList();
     }
 

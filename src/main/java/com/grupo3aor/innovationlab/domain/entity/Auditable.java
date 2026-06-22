@@ -70,4 +70,34 @@ public abstract class Auditable {
     // the network traceability column as specified in the UML diagram.
     @Column(name = "origin_ip")
     private String originIp;
+
+    @jakarta.persistence.PrePersist
+    public void prePersist() {
+        String currentUser = getCurrentUser();
+        if (this.createdBy == null) {
+            this.createdBy = currentUser;
+        }
+        this.updatedBy = currentUser;
+        
+        if (this.originIp == null) {
+            this.originIp = getCurrentIp();
+        }
+    }
+
+    @jakarta.persistence.PreUpdate
+    public void preUpdate() {
+        this.updatedBy = getCurrentUser();
+        this.originIp = getCurrentIp();
+    }
+
+    private String getCurrentUser() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) ? auth.getName() : "SYSTEM";
+    }
+
+    private String getCurrentIp() {
+        org.springframework.web.context.request.ServletRequestAttributes attrs = 
+            (org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        return (attrs != null && attrs.getRequest() != null) ? attrs.getRequest().getRemoteAddr() : "SYSTEM";
+    }
 }

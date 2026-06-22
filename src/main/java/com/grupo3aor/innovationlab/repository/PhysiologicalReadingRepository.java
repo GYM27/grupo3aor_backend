@@ -22,6 +22,11 @@ public interface PhysiologicalReadingRepository extends JpaRepository<Physiologi
     List<PhysiologicalReading> findBySimulation_Id(UUID simulationId);
 
     /**
+     * Finds all readings for a simulation ordered chronologically.
+     */
+    List<PhysiologicalReading> findBySimulation_IdOrderByTimestampAsc(UUID simulationId);
+
+    /**
      * Finds the first reading of a simulation to determine the exact base timestamp.
      */
     PhysiologicalReading findFirstBySimulation_IdOrderByTimestampAsc(UUID simulationId);

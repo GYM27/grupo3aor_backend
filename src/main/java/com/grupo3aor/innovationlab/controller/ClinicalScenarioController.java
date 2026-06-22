@@ -1,5 +1,6 @@
 package com.grupo3aor.innovationlab.controller;
 
+import com.grupo3aor.innovationlab.audit.AuditableAction;
 import com.grupo3aor.innovationlab.dto.ClinicalScenarioRequest;
 import com.grupo3aor.innovationlab.dto.ClinicalScenarioResponse;
 import com.grupo3aor.innovationlab.service.ClinicalScenarioService;
@@ -38,6 +39,7 @@ public class ClinicalScenarioController {
      * Protected endpoint generating new scenario entries.
      */
     @PostMapping
+    @AuditableAction(action = "CREATE_SCENARIO")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> createScenario(
             @Valid @RequestBody ClinicalScenarioRequest request,
@@ -62,6 +64,13 @@ public class ClinicalScenarioController {
             HttpServletRequest httpRequest) {
 
         try {
+            if (file.isEmpty() || !("application/json".equals(file.getContentType()))) {
+                return ResponseEntity.badRequest().body("Ficheiro inválido. Apenas ficheiros JSON são permitidos.");
+            }
+            if (file.getSize() > 5 * 1024 * 1024) { // Limite de 5MB
+                return ResponseEntity.badRequest().body("O ficheiro JSON é demasiado grande (limite: 5MB).");
+            }
+
             // 1. A Magia do Jackson: Lê o input stream do ficheiro para o DTO
             ClinicalScenarioRequest request = objectMapper.readValue(file.getInputStream(), ClinicalScenarioRequest.class);
 
@@ -92,10 +101,10 @@ public class ClinicalScenarioController {
      * Protected endpoint recycling scenario entries.
      */
     @DeleteMapping("/{id}")
+    @AuditableAction(action = "DELETE_SCENARIO")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<?> deleteScenario(@PathVariable Long id, Authentication authentication) {
-        String operatorEmail = authentication.getName();
-        scenarioService.deleteScenario(id, operatorEmail);
+    public ResponseEntity<?> deleteScenario(@PathVariable Long id) {
+        scenarioService.deleteScenario(id);
         return ResponseEntity.ok().build();
     }
 
@@ -112,17 +121,13 @@ public class ClinicalScenarioController {
      * Updates an existing scenario configuration.
      */
     @PutMapping("/{id}")
+    @AuditableAction(action = "UPDATE_SCENARIO")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ClinicalScenarioResponse> updateScenario(
             @PathVariable Long id,
-            @Valid @RequestBody ClinicalScenarioRequest request,
-            Authentication authentication,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ClinicalScenarioRequest request) {
             
-        String operatorEmail = authentication.getName();
-        String originIp = httpRequest.getRemoteAddr();
-
-        ClinicalScenarioResponse response = scenarioService.updateScenario(id, request, operatorEmail, originIp);
+        ClinicalScenarioResponse response = scenarioService.updateScenario(id, request);
         return ResponseEntity.ok(response);
     }
 }

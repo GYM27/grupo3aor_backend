@@ -1,5 +1,6 @@
 package com.grupo3aor.innovationlab.controller;
 
+import com.grupo3aor.innovationlab.audit.AuditableAction;
 import com.grupo3aor.innovationlab.dto.PhysiologicalSystemRequest;
 import com.grupo3aor.innovationlab.dto.PhysiologicalSystemResponse;
 import com.grupo3aor.innovationlab.service.PhysiologicalSystemService;
@@ -36,14 +37,13 @@ public class PhysiologicalSystemController {
     // Based on the functional requirements, I restricted configuration endpoints strictly 
     // to the ADMIN profile. Users or Managers cannot alter these core global setups.
     @PostMapping
+    @AuditableAction(action = "CREATE_SYSTEM")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> createSystem(
             @Valid @RequestBody PhysiologicalSystemRequest request,
             Authentication authentication,
             HttpServletRequest httpRequest) {
 
-        // I captured the active operator's identity and network origin dynamically 
-        // from the security context to ensure tamper-proof auditing logs.
         String operatorEmail = authentication.getName();
         String originIp = httpRequest.getRemoteAddr();
 
@@ -66,10 +66,10 @@ public class PhysiologicalSystemController {
      * Protected endpoint recycling system entries.
      */
     @DeleteMapping("/{id}")
+    @AuditableAction(action = "DELETE_SYSTEM")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<?> deleteSystem(@PathVariable Long id, Authentication authentication) {
-        String operatorEmail = authentication.getName();
-        systemService.deleteSystem(id, operatorEmail);
+    public ResponseEntity<?> deleteSystem(@PathVariable Long id) {
+        systemService.deleteSystem(id);
         return ResponseEntity.ok().build();
     }
 
@@ -86,17 +86,13 @@ public class PhysiologicalSystemController {
      * Updates an existing system configuration.
      */
     @PutMapping("/{id}")
+    @AuditableAction(action = "UPDATE_SYSTEM")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<PhysiologicalSystemResponse> updateSystem(
             @PathVariable Long id,
-            @Valid @RequestBody PhysiologicalSystemRequest request,
-            Authentication authentication,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody PhysiologicalSystemRequest request) {
             
-        String operatorEmail = authentication.getName();
-        String originIp = httpRequest.getRemoteAddr();
-
-        PhysiologicalSystemResponse response = systemService.updateSystem(id, request, operatorEmail, originIp);
+        PhysiologicalSystemResponse response = systemService.updateSystem(id, request);
         return ResponseEntity.ok(response);
     }
 }
