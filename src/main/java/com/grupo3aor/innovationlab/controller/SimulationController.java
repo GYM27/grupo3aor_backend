@@ -40,8 +40,8 @@ public class SimulationController {
      */
     @PostMapping("/{id}/stop")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> stopSimulation(@PathVariable UUID id) {
-        SimulationResponse response = simulationService.stopSimulation(id);
+    public ResponseEntity<?> stopSimulation(@PathVariable UUID id, @RequestParam(required = false) Double cutOffSeconds) {
+        SimulationResponse response = simulationService.stopSimulation(id, cutOffSeconds);
         return ResponseEntity.ok(response);
     }
 

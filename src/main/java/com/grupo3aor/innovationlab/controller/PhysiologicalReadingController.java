@@ -68,14 +68,25 @@ public class PhysiologicalReadingController {
      * @return A ResponseEntity containing the list of all ingested PhysiologicalReadingDTOs
      */
     @PostMapping(value = "/simulation/{simulationId}/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<List<PhysiologicalReadingDTO>> uploadBioGearsBatch(
+    public ResponseEntity<java.util.Map<String, String>> uploadBioGearsBatch(
             @PathVariable UUID simulationId,
             @RequestParam("file") MultipartFile file,
             Authentication authentication,
             HttpServletRequest request) {
         try {
             List<PhysiologicalReadingDTO> readings = parserService.parseCsv(file, simulationId);
-            return ResponseEntity.ok(service.createReadingBatch(readings, authentication.getName(), request.getRemoteAddr()));
+            String userEmail = authentication.getName();
+            String ipAddress = request.getRemoteAddr();
+
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    service.createReadingBatch(readings, userEmail, ipAddress);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+
+            return ResponseEntity.accepted().body(java.util.Map.of("message", "Batch upload accepted and processing in background"));
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to parse CSV file: " + e.getMessage());
         }

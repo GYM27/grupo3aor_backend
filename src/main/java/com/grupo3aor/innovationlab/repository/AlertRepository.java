@@ -30,4 +30,15 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
     // I added this query to prevent alert spam. It checks if there's already an active alert for the same simulation and rule.
     boolean existsBySimulationAndRuleAndStatus(Simulation simulation, Rule rule, AlertStatus status);
     
+    /**
+     * Bulk deletes alerts that occur after a specific timestamp.
+     * Uses @Modifying and @Query to prevent N+1 select/delete problems.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("DELETE FROM Alert a WHERE a.simulation.id = :simId AND a.timestamp > :timestamp")
+    void bulkDeleteFutureAlerts(
+            @org.springframework.data.repository.query.Param("simId") UUID simId, 
+            @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
+    );
 }

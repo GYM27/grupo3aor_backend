@@ -32,6 +32,8 @@ public class SimulationService {
     private final UserRepository userRepository;
     private final ClinicalScenarioRepository scenarioRepository;
     private final SimulationEngineService simulationEngineService;
+    private final com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository readingRepository;
+    private final com.grupo3aor.innovationlab.repository.AlertRepository alertRepository;
 
     /**
      * Let's start a new simulation securely from the user's request.
@@ -63,13 +65,24 @@ public class SimulationService {
      * Safely ends an ongoing simulation.
      */
     @Transactional
-    public SimulationResponse stopSimulation(UUID simulationId) {
+    public SimulationResponse stopSimulation(UUID simulationId, Double cutOffSeconds) {
         Simulation sim = simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
 
         // We must protect this block to prevent ending a simulation that is already finished or canceled!
         if (sim.getStatus() == SimulationStatus.FINALIZADA || sim.getStatus() == SimulationStatus.CANCELADA) {
             throw new IllegalStateException("Simulation is already finalized or canceled.");
+        }
+
+        if (cutOffSeconds != null) {
+            com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulationId);
+            if (firstReading != null) {
+                LocalDateTime exactBaseTime = firstReading.getTimestamp();
+                LocalDateTime cutOffAbsolute = exactBaseTime.plusNanos((long)(cutOffSeconds * 1_000_000_000L)).plusSeconds(1);
+                readingRepository.bulkDeleteFutureReadings(simulationId, cutOffAbsolute);
+                alertRepository.bulkDeleteFutureAlerts(simulationId, cutOffAbsolute);
+                log.info("Truncated simulation {} data after {}", simulationId, cutOffAbsolute);
+            }
         }
 
         sim.setStatus(SimulationStatus.FINALIZADA);
