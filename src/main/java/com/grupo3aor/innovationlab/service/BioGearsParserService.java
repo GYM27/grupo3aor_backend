@@ -4,6 +4,8 @@ import com.grupo3aor.innovationlab.dto.PhysiologicalReadingDTO;
 import com.opencsv.CSVReader;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.grupo3aor.innovationlab.repository.SimulationRepository;
+import com.grupo3aor.innovationlab.domain.entity.Simulation;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -19,6 +21,12 @@ import java.util.UUID;
  */
 @Service
 public class BioGearsParserService {
+
+    private final SimulationRepository simulationRepository;
+
+    public BioGearsParserService(SimulationRepository simulationRepository) {
+        this.simulationRepository = simulationRepository;
+    }
 
     /**
      * Parses a multipart CSV file and returns a list of physiological readings.
@@ -53,7 +61,10 @@ public class BioGearsParserService {
             if (timeIdx == -1) throw new IllegalArgumentException("CSV missing 'Time(s)' column");
 
             String[] row;
-            LocalDateTime baseTime = LocalDateTime.now(); // Time anchor for playback
+            Simulation sim = simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new IllegalArgumentException("Simulation not found"));
+            LocalDateTime baseTime = sim.getStartedAt();
+            if (baseTime == null) baseTime = LocalDateTime.now(); // Fallback if missing
             
             while ((row = csvReader.readNext()) != null) {
                 if (row.length <= timeIdx || row[timeIdx].isEmpty()) continue;

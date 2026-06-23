@@ -54,12 +54,13 @@ public class RuleEvaluatorService {
                     );
 
                     if (!alreadyAlerting) {
-                        Alert newAlert = Alert.builder()
-                            .simulation(reading.getSimulation())
-                            .rule(rule)
-                            .status(AlertStatus.ATIVO)
-                            .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
-                            .build();
+                            Alert newAlert = Alert.builder()
+                                .simulation(reading.getSimulation())
+                                .rule(rule)
+                                .status(AlertStatus.ATIVO)
+                                .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
+                                .timestamp(reading.getTimestamp())
+                                .build();
                         
                         alertRepository.save(newAlert);
 
@@ -91,6 +92,7 @@ public class RuleEvaluatorService {
      *
      * @param readings The list of physiological readings to be evaluated
      */
+    @org.springframework.transaction.annotation.Transactional
     public void evaluateReadingsBatch(java.util.List<PhysiologicalReading> readings) {
         if (readings == null || readings.isEmpty()) return;
         
@@ -124,6 +126,7 @@ public class RuleEvaluatorService {
                                 .rule(rule)
                                 .status(AlertStatus.ATIVO)
                                 .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
+                                .timestamp(reading.getTimestamp())
                                 .build();
                             
                             newAlertsToSave.add(newAlert);
@@ -139,6 +142,20 @@ public class RuleEvaluatorService {
         // Save all newly generated alerts in one batch
         if (!newAlertsToSave.isEmpty()) {
             alertRepository.saveAll(newAlertsToSave);
+
+            String alertTopic = "/topic/simulations/" + currentSim.getId() + "/alerts";
+            for (Alert newAlert : newAlertsToSave) {
+                java.util.Map<String, Object> alertPayload = java.util.Map.of(
+                    "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
+                    "simulationId",   currentSim.getId().toString(),
+                    "severity",       newAlert.getRule().getSeverity().name(),
+                    "systemName",     newAlert.getRule().getSystem() != null ? newAlert.getRule().getSystem().getSystemName() : "Unknown",
+                    "valueAtTrigger", newAlert.getValueAtTrigger(),
+                    "timestamp",      newAlert.getTimestamp().toString(),
+                    "expressionDsl",  newAlert.getRule().getExpressionDsl() != null ? newAlert.getRule().getExpressionDsl() : ""
+                );
+                messagingTemplate.convertAndSend(alertTopic, alertPayload);
+            }
         }
     }
 }

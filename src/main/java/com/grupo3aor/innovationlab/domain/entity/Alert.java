@@ -18,7 +18,9 @@ import java.util.UUID;
  * FK relations to Simulation and Rule enforce referential integrity at DB level.
  */
 @Entity
-@Table(name = "ALERT")
+@Table(name = "ALERT", indexes = {
+    @Index(name = "idx_alert_sim", columnList = "simulation_id, timestamp")
+})
 @Getter
 @Setter
 @ToString
@@ -53,6 +55,14 @@ public class Alert extends Auditable {
 
     @Column(name = "value_at_trigger", nullable = false)
     private Double valueAtTrigger;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
+    @Column(name = "timestamp", nullable = false)
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
 
     @Override
     public boolean equals(Object o) {

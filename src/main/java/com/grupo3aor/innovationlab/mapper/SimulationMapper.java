@@ -59,9 +59,15 @@ public class SimulationMapper {
         // I extract the UUIDs from the FK relations so the API response stays consistent
         dto.setSimulationId(entity.getSimulation() != null ? entity.getSimulation().getId() : null);
         dto.setRuleId(entity.getRule() != null ? entity.getRule().getId() : null);
-        dto.setTimestamp(entity.getCreatedAt());
+        dto.setTimestamp(entity.getTimestamp());
         dto.setStatus(entity.getStatus());
         dto.setValueAtTrigger(entity.getValueAtTrigger());
+        if (entity.getRule() != null) {
+            dto.setSeverity(entity.getRule().getSeverity().name());
+            if (entity.getRule().getSystem() != null) {
+                dto.setSystemName(entity.getRule().getSystem().getSystemName());
+            }
+        }
         return dto;
     }
 

@@ -19,7 +19,9 @@ import java.util.UUID;
  * FK relation to Simulation enforces referential integrity at DB level.
  */
 @Entity
-@Table(name = "PHYSIOLOGICAL_READING")
+@Table(name = "PHYSIOLOGICAL_READING", indexes = {
+    @Index(name = "idx_reading_sim_time", columnList = "simulation_id, timestamp")
+})
 @Getter
 @Setter
 @ToString

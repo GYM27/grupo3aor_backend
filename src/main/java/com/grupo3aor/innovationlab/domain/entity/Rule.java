@@ -100,16 +100,39 @@ public class Rule extends Auditable {
     @Transient
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    @Transient
+    private RuleCondition cachedCondition;
+
     public boolean isTriggeredBy(String handle, Double value) {
         if (this.expressionDsl == null || this.expressionDsl.isEmpty()) return false;
         try {
-            RuleCondition condition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
-            if (!condition.getMetric().equals(handle)) return false;
+            if (this.cachedCondition == null) {
+                this.cachedCondition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+            }
+            
+            String metric = this.cachedCondition.getMetric();
+            boolean matches = false;
+            
+            if ("HEART_RATE".equalsIgnoreCase(metric)) {
+                matches = "HeartRate".equalsIgnoreCase(handle) || "Cardiovascular".equalsIgnoreCase(handle) || "HR".equalsIgnoreCase(handle);
+            } else if ("SPO2".equalsIgnoreCase(metric)) {
+                matches = "OxygenSaturation".equalsIgnoreCase(handle) || "SpO2".equalsIgnoreCase(handle) || "Respiratory".equalsIgnoreCase(handle);
+            } else if ("BP".equalsIgnoreCase(metric)) {
+                matches = "ArterialPressure_Systolic".equalsIgnoreCase(handle) || "SystolicArterialPressure".equalsIgnoreCase(handle) || "SBP".equalsIgnoreCase(handle);
+            } else if ("RR".equalsIgnoreCase(metric)) {
+                matches = "RespirationRate".equalsIgnoreCase(handle);
+            } else if ("TEMP".equalsIgnoreCase(metric) || "TEMPERATURE".equalsIgnoreCase(metric)) {
+                matches = "CoreTemperature".equalsIgnoreCase(handle) || "TEMP".equalsIgnoreCase(handle);
+            } else {
+                matches = metric != null && metric.equalsIgnoreCase(handle);
+            }
 
-            switch (condition.getOperator()) {
-                case ">": return value.compareTo(condition.getThreshold()) > 0;
-                case "<": return value.compareTo(condition.getThreshold()) < 0;
-                case "==": return value.compareTo(condition.getThreshold()) == 0;
+            if (!matches) return false;
+
+            switch (this.cachedCondition.getOperator()) {
+                case ">": return value.compareTo(this.cachedCondition.getThreshold()) > 0;
+                case "<": return value.compareTo(this.cachedCondition.getThreshold()) < 0;
+                case "==": return value.compareTo(this.cachedCondition.getThreshold()) == 0;
                 default: return false;
             }
         } catch (Exception e) {

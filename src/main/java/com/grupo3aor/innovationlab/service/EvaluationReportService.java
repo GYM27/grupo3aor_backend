@@ -90,14 +90,21 @@ public class EvaluationReportService {
             document.add(new Paragraph("VitalSim - Relatorio de Avaliacao", titleFont));
             document.add(new Paragraph("Simulacao: " + simulation.getId(), textFont));
             document.add(new Paragraph("Contexto da Avaliacao: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
-            document.add(new Paragraph("Data: " + LocalDateTime.now().format(formatter), textFont));
-            
             // Computar Intervalo Temporal Real
-            List<PhysiologicalReading> readings = readingRepository.findBySimulation_IdOrderByTimestampAsc(simulation.getId());
+            PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulation.getId());
+            PhysiologicalReading lastReading = readingRepository.findFirstBySimulation_IdOrderByTimestampDesc(simulation.getId());
             String intervaloStr = report.getIntervaloTemporal();
-            if (readings != null && !readings.isEmpty()) {
-                LocalDateTime first = readings.get(0).getTimestamp();
-                LocalDateTime last = readings.get(readings.size() - 1).getTimestamp();
+            LocalDateTime startBaseTime = simulation.getStartedAt() != null ? simulation.getStartedAt() : LocalDateTime.now();
+
+            if (firstReading != null) {
+                startBaseTime = firstReading.getTimestamp();
+            }
+
+            document.add(new Paragraph("Data: " + startBaseTime.format(formatter), textFont));
+
+            if (firstReading != null && lastReading != null) {
+                LocalDateTime first = firstReading.getTimestamp();
+                LocalDateTime last = lastReading.getTimestamp();
                 long seconds = Duration.between(first, last).getSeconds();
                 long minutes = seconds / 60;
                 long secs = seconds % 60;
@@ -130,7 +137,17 @@ public class EvaluationReportService {
                 alertTable.addCell(new Phrase("Rationale Analítico", boldFont));
                 
                 for (Alert a : alerts) {
-                    alertTable.addCell(new Phrase(a.getCreatedAt() != null ? a.getCreatedAt().format(timeFormatter) : "N/A", textFont));
+                    String instante = "N/A";
+                    if (a.getTimestamp() != null && firstReading != null) {
+                        long diffSecs = Duration.between(firstReading.getTimestamp(), a.getTimestamp()).getSeconds();
+                        // If diff is negative (e.g. edge cases), default to 0
+                        diffSecs = Math.max(0, diffSecs);
+                        instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
+                    } else if (a.getTimestamp() != null) {
+                        instante = a.getTimestamp().format(timeFormatter);
+                    }
+
+                    alertTable.addCell(new Phrase(instante, textFont));
                     alertTable.addCell(new Phrase(a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A", textFont));
                     alertTable.addCell(new Phrase(a.getRule() != null ? a.getRule().getName() : "N/A", textFont));
                     alertTable.addCell(new Phrase(a.getRule() != null ? a.getRule().getSeverity().name() : "N/A", textFont));
@@ -145,7 +162,8 @@ public class EvaluationReportService {
             document.add(new Paragraph("Resumo de Leituras Fisiologicas", subtitleFont));
             document.add(new Paragraph("\n"));
             
-            if (readings == null || readings.isEmpty()) {
+            List<PhysiologicalReading> latestReadings = readingRepository.findTop20BySimulation_IdOrderByTimestampDesc(simulation.getId());
+            if (latestReadings == null || latestReadings.isEmpty()) {
                 document.add(new Paragraph("Nenhuma leitura captada.", textFont));
             } else {
                 PdfPTable readingTable = new PdfPTable(3);
@@ -154,15 +172,25 @@ public class EvaluationReportService {
                 
                 readingTable.addCell(new Phrase("Sinal Vital", boldFont));
                 readingTable.addCell(new Phrase("Valor", boldFont));
-                readingTable.addCell(new Phrase("Hora", boldFont));
+                readingTable.addCell(new Phrase("Instante", boldFont));
                 
-                // Limitar para não gerar um PDF de mil paginas (mostramos so as ultimas 20 leituras)
-                int limit = Math.min(readings.size(), 20);
-                for (int i = readings.size() - limit; i < readings.size(); i++) {
-                    PhysiologicalReading r = readings.get(i);
+                // Since findTop20BySimulation_IdOrderByTimestampDesc returned them in descending order,
+                // we iterate backwards from the end of the list to the beginning to print them chronologically (ascending).
+                for (int i = latestReadings.size() - 1; i >= 0; i--) {
+                    PhysiologicalReading r = latestReadings.get(i);
                     readingTable.addCell(new Phrase(r.getHandle(), textFont));
                     readingTable.addCell(new Phrase(r.getValue() + " " + r.getUnit(), textFont));
-                    readingTable.addCell(new Phrase(r.getTimestamp().format(timeFormatter), textFont));
+
+                    String readingInstante = "N/A";
+                    if (r.getTimestamp() != null && firstReading != null) {
+                        long diffSecs = Duration.between(firstReading.getTimestamp(), r.getTimestamp()).getSeconds();
+                        diffSecs = Math.max(0, diffSecs);
+                        readingInstante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
+                    } else if (r.getTimestamp() != null) {
+                        readingInstante = r.getTimestamp().format(timeFormatter);
+                    }
+
+                    readingTable.addCell(new Phrase(readingInstante, textFont));
                 }
                 document.add(readingTable);
             }
