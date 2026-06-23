@@ -26,6 +26,9 @@ public class AlertDTO {
     private LocalDateTime timestamp;
     private AlertStatus status;
 
+    private String severity;
+    private String systemName;
+
     @NotNull(message = "The reading value recorded at trigger time is required")
     private Double valueAtTrigger;
 }
