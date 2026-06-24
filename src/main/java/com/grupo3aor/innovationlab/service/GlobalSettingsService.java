@@ -18,7 +18,7 @@ public class GlobalSettingsService {
             dataRepository = new GlobalSettings();
             dataRepository.setId(1L);
             dataRepository.setSessionTimeoutMinutes(30);
-            dataRepository.setIsBioGearsEnabled(false);
+            dataRepository.setIsHumanBodyEnabled(false);
             return repository.save(dataRepository);
         }
         return dataRepository;
