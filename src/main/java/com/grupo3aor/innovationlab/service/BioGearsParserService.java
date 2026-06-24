@@ -48,7 +48,7 @@ public class BioGearsParserService {
             }
             
             // Dynamically map BioGears columns to indexes
-            int timeIdx = -1, hrIdx = -1, spo2Idx = -1, sbpIdx = -1, tempIdx = -1, rrIdx = -1;
+            int timeIdx = -1, hrIdx = -1, spo2Idx = -1, sbpIdx = -1, tempIdx = -1, rrIdx = -1, tidalIdx = -1, phIdx = -1;
             for (int i = 0; i < header.length; i++) {
                 String col = header[i].trim();
                 if (col.startsWith("Time")) timeIdx = i;
@@ -57,6 +57,8 @@ public class BioGearsParserService {
                 else if (col.startsWith("SystolicArterialPressure")) sbpIdx = i;
                 else if (col.startsWith("CoreTemperature")) tempIdx = i;
                 else if (col.startsWith("RespirationRate")) rrIdx = i;
+                else if (col.startsWith("TidalVolume")) tidalIdx = i;
+                else if (col.startsWith("ArterialBloodPH")) phIdx = i;
             }
             
             if (timeIdx == -1) throw new IllegalArgumentException("CSV missing 'Time(s)' column");
@@ -97,6 +99,16 @@ public class BioGearsParserService {
                 // Parse Respiration Rate
                 if (rrIdx != -1 && rrIdx < row.length && !row[rrIdx].isEmpty()) {
                     readings.add(createDTO(simulationId, "RR", "1/min", row[rrIdx], timestamp, 1.0));
+                }
+
+                // Parse Tidal Volume
+                if (tidalIdx != -1 && tidalIdx < row.length && !row[tidalIdx].isEmpty()) {
+                    readings.add(createDTO(simulationId, "TidalVolume", "mL", row[tidalIdx], timestamp, 1.0));
+                }
+
+                // Parse Arterial Blood PH
+                if (phIdx != -1 && phIdx < row.length && !row[phIdx].isEmpty()) {
+                    readings.add(createDTO(simulationId, "ArterialBloodPH", "pH", row[phIdx], timestamp, 1.0));
                 }
             }
         }

@@ -79,9 +79,9 @@ public class PhysiologicalReadingController {
             String userEmail = authentication.getName();
             String ipAddress = request.getRemoteAddr();
 
-            service.createReadingBatch(readings, userEmail, ipAddress);
+            service.createReadingBatchAsync(readings, userEmail, ipAddress);
 
-            return ResponseEntity.ok(java.util.Map.of("message", "Batch upload accepted and processed successfully."));
+            return ResponseEntity.accepted().body(java.util.Map.of("message", "Batch upload accepted and processed successfully."));
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to parse CSV file: " + e.getMessage());
         }

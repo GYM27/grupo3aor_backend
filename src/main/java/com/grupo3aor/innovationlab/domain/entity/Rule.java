@@ -109,6 +109,33 @@ public class Rule extends Auditable {
     @Transient
     private RuleCondition cachedCondition;
 
+    public boolean isApplicableTo(String handle) {
+        if (this.expressionDsl == null || this.expressionDsl.isEmpty()) return false;
+        try {
+            if (this.cachedCondition == null) {
+                this.cachedCondition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+            }
+            String metric = this.cachedCondition.getMetric();
+            if (metric == null || handle == null) return false;
+            
+            if ("HEART_RATE".equalsIgnoreCase(metric)) {
+                return "HeartRate".equalsIgnoreCase(handle) || "Cardiovascular".equalsIgnoreCase(handle) || "HR".equalsIgnoreCase(handle);
+            } else if ("SPO2".equalsIgnoreCase(metric)) {
+                return "OxygenSaturation".equalsIgnoreCase(handle) || "SpO2".equalsIgnoreCase(handle) || "Respiratory".equalsIgnoreCase(handle);
+            } else if ("BP".equalsIgnoreCase(metric)) {
+                return "ArterialPressure_Systolic".equalsIgnoreCase(handle) || "SystolicArterialPressure".equalsIgnoreCase(handle) || "SBP".equalsIgnoreCase(handle);
+            } else if ("RR".equalsIgnoreCase(metric)) {
+                return "RespirationRate".equalsIgnoreCase(handle);
+            } else if ("TEMP".equalsIgnoreCase(metric) || "TEMPERATURE".equalsIgnoreCase(metric)) {
+                return "CoreTemperature".equalsIgnoreCase(handle) || "TEMP".equalsIgnoreCase(handle);
+            } else {
+                return metric.equalsIgnoreCase(handle);
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public boolean isTriggeredBy(String handle, Double value) {
         if (this.expressionDsl == null || this.expressionDsl.isEmpty()) return false;
         try {
@@ -147,19 +174,18 @@ public class Rule extends Auditable {
     }
 
     public Integer getPersistence() {
-        if (this.cachedCondition != null && this.cachedCondition.getPersistence() != null) {
-            return this.cachedCondition.getPersistence();
-        }
-        // Force parse if not cached yet
-        if (this.expressionDsl != null && !this.expressionDsl.isEmpty()) {
-            try {
-                RuleCondition cond = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
-                return cond.getPersistence() != null ? cond.getPersistence() : 0;
-            } catch (Exception e) {
+        if (this.cachedCondition == null) {
+            if (this.expressionDsl != null && !this.expressionDsl.isEmpty()) {
+                try {
+                    this.cachedCondition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+                } catch (Exception e) {
+                    return 0;
+                }
+            } else {
                 return 0;
             }
         }
-        return 0;
+        return this.cachedCondition.getPersistence() != null ? this.cachedCondition.getPersistence() : 0;
     }
 
     // =========================================================
