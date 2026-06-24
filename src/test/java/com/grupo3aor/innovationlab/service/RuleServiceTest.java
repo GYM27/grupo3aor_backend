@@ -214,28 +214,28 @@ class RuleServiceTest {
     // =========================================================
 
     @Test
-    @DisplayName("deactivateRule: deve chamar deleteById quando o ID existe")
-    void deactivateRule_shouldCallDeleteById_whenRuleExists() {
+    @DisplayName("deleteRule: deve chamar deleteById quando o ID existe")
+    void deleteRule_shouldCallDeleteById_whenRuleExists() {
         // ARRANGE
         UUID existingId = UUID.randomUUID();
         when(ruleRepository.existsById(existingId)).thenReturn(true);
 
         // ACT
-        ruleService.deactivateRule(existingId);
+        ruleService.deleteRule(existingId);
 
         // ASSERT — verify the soft-delete mechanism was triggered
         verify(ruleRepository, times(1)).deleteById(existingId);
     }
 
     @Test
-    @DisplayName("deactivateRule: deve lançar ResourceNotFoundException para ID inexistente")
-    void deactivateRule_shouldThrowResourceNotFound_whenRuleDoesNotExist() {
+    @DisplayName("deleteRule: deve lançar ResourceNotFoundException para ID inexistente")
+    void deleteRule_shouldThrowResourceNotFound_whenRuleDoesNotExist() {
         // ARRANGE
         UUID nonExistentId = UUID.randomUUID();
         when(ruleRepository.existsById(nonExistentId)).thenReturn(false);
 
         // ACT & ASSERT
-        assertThatThrownBy(() -> ruleService.deactivateRule(nonExistentId))
+        assertThatThrownBy(() -> ruleService.deleteRule(nonExistentId))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Rule not found");
 
