@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -28,12 +29,18 @@ public class SimulationResponse {
     
     private Long scenarioId;
     
+    private String scenarioName;
+    
     private String userEmail;
+    
+    private String studentName;
     
     private LocalDateTime startedAt;
     
     private LocalDateTime endedAt;
     
     private SimulationStatus status;
+
+    private List<AlertEventDTO> events;
 
 }
