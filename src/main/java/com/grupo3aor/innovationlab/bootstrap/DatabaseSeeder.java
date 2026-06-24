@@ -127,11 +127,15 @@ public class DatabaseSeeder implements CommandLineRunner {
         if (userRepository.count() == 0) {
             System.out.println("[SEEDER] Inserindo Utilizadores iniciais...");
 
-            com.grupo3aor.innovationlab.domain.entity.User luis = com.grupo3aor.innovationlab.domain.entity.User.builder()
-                .firstName("Luís")
-                .lastName("Admin")
-                .email("luis@gmail.com")
-                .passwordHash(passwordEncoder.encode("Pass1234#"))
+            // Password base encriptada para todos
+            String passHash = passwordEncoder.encode("Pass1234#");
+
+            // Conta Administrador
+            com.grupo3aor.innovationlab.domain.entity.User adminUser = com.grupo3aor.innovationlab.domain.entity.User.builder()
+                .firstName("Admin")
+                .lastName("Sistema")
+                .email("admin@gmail.com")
+                .passwordHash(passHash)
                 .perfil(com.grupo3aor.innovationlab.domain.enums.PerfilEnum.ADMIN)
                 .accountActivated(true)
                 .active(true)
@@ -139,8 +143,8 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .updatedBy("system_seeder")
                 .build();
 
-            userRepository.save(luis);
-            System.out.println("[SEEDER] Utilizador luis@gmail.com criado com sucesso!");
+            userRepository.save(adminUser);
+            System.out.println("[SEEDER] Utilizador admin@gmail.com criado com sucesso!");
         }
     }
 }
