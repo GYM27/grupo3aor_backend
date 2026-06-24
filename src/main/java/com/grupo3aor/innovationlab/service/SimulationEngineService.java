@@ -37,6 +37,7 @@ public class SimulationEngineService {
     private final SimulationRepository simulationRepository;
     private final PhysiologicalReadingService physiologicalReadingService;
     private final ObjectMapper objectMapper;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     // Cache to hold parsed JSON payloads, avoiding ObjectMapper overhead every second
     private final ConcurrentHashMap<UUID, List<MetricDTO>> metricsCache = new ConcurrentHashMap<>();
@@ -171,7 +172,9 @@ public class SimulationEngineService {
             }
             
             if (!batchToInsert.isEmpty()) {
-                physiologicalReadingService.createReadingBatch(batchToInsert, "engine@innovationlab.com", "127.0.0.1");
+                for (PhysiologicalReadingDTO reading : batchToInsert) {
+                    physiologicalReadingService.createReading(reading, "engine@innovationlab.com", "127.0.0.1");
+                }
             }
 
             // If I actually processed anything, I save the new progress index
@@ -196,5 +199,16 @@ public class SimulationEngineService {
         simulationRepository.save(sim);
         decrementActiveSimulations();
         metricsCache.remove(sim.getId());
+        
+        try {
+            com.grupo3aor.innovationlab.dto.AlertDTO finishAlert = com.grupo3aor.innovationlab.dto.AlertDTO.builder()
+                    .timestamp(LocalDateTime.now())
+                    .rule(com.grupo3aor.innovationlab.dto.RuleDTO.builder().severity(com.grupo3aor.innovationlab.domain.enums.AlertSeverity.INFO).build())
+                    .valueAtTrigger("[SYSTEM_END_SIMULATION]")
+                    .build();
+            messagingTemplate.convertAndSend("/topic/simulations/" + sim.getId() + "/alerts", finishAlert);
+        } catch (Exception e) {
+            log.warn("Failed to broadcast end of simulation for {}", sim.getId(), e);
+        }
     }
 }
