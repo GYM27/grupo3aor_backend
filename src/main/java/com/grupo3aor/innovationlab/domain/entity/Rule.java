@@ -29,9 +29,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-// I updated this interceptor to use 'active = false' for soft delete,
-// standardizing the naming across all entities (User, PhysiologicalSystem, ClinicalScenario all use 'active').
-@SQLDelete(sql = "UPDATE rules SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+// I updated this interceptor to use 'deleted = true' for soft delete,
+// so 'active' can be toggled without deleting the rule.
+@SQLDelete(sql = "UPDATE rules SET deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 public class Rule extends Auditable {
 
     // =========================================================
@@ -89,9 +89,14 @@ public class Rule extends Auditable {
     // Renamed from 'deleted' to 'active' to be consistent with User, PhysiologicalSystem
     // and ClinicalScenario — all of which use active=true/false for soft delete.
     // =========================================================
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default true")
     @Builder.Default
     private boolean active = true;
+
+    // True soft-delete flag, introduced so we can separate 'inactive' from 'deleted'
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean deleted = false;
 
     // =========================================================
     // DOMAIN LOGIC (DDD)

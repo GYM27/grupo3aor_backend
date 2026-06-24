@@ -46,6 +46,9 @@ public class RuleService {
         PhysiologicalSystem system = systemRepository.findById(request.getSystemId())
                 .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
 
+        // Validation for Blood Pressure Limits
+        validateBPLimits(request.getExpressionDsl());
+
         Rule rule = Rule.builder()
                 .name(request.getName())
                 .system(system)
@@ -59,32 +62,47 @@ public class RuleService {
     }
 
     /**
-     * Lists rules optionally filtered by their active state.
+     * Lists rules paginated and filtered.
      */
     @Transactional(readOnly = true)
-    public List<RuleResponse> getAllRules(Boolean active) {
-        List<Rule> rules;
-        if (active == null) {
-            rules = ruleRepository.findAll();
-        } else {
-            rules = ruleRepository.findByActive(active);
-        }
+    public org.springframework.data.domain.Page<RuleResponse> getAllRules(String name, Long systemId, String status, org.springframework.data.domain.Pageable pageable) {
+        Boolean active = null;
+        boolean deleted = false;
+
+        if ("Ativa".equalsIgnoreCase(status)) {
+            active = true;
+        } else if ("Inativas".equalsIgnoreCase(status)) {
+            active = false;
+        } else if ("Eliminadas".equalsIgnoreCase(status)) {
+            deleted = true;
+        } // "Todas" ou outro valor mantém active = null e deleted = false
+
+        org.springframework.data.domain.Page<Rule> rulesPage = ruleRepository.findFilteredRules(name, systemId, active, deleted, pageable);
         
-        return rules.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return rulesPage.map(this::mapToResponse);
     }
 
     /**
      * Soft-deletes a rule by ID. 
-     * Because I added @SQLDelete in the Rule entity, this will just set active = false!
+     * Because I added @SQLDelete in the Rule entity, this will just set deleted = true!
      */
     @Transactional
-    public void deactivateRule(UUID ruleId) {
+    public void deleteRule(UUID ruleId) {
         if (!ruleRepository.existsById(ruleId)) {
             throw new ResourceNotFoundException("Rule not found with ID: " + ruleId);
         }
         ruleRepository.deleteById(ruleId);
+    }
+
+    /**
+     * Deactivates a rule.
+     */
+    @Transactional
+    public void deactivateRule(UUID ruleId) {
+        Rule rule = ruleRepository.findById(ruleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
+        rule.setActive(false);
+        ruleRepository.save(rule);
     }
 
     /**
@@ -109,6 +127,9 @@ public class RuleService {
         PhysiologicalSystem system = systemRepository.findById(request.getSystemId())
                 .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
 
+        // Validation for Blood Pressure Limits
+        validateBPLimits(request.getExpressionDsl());
+
         rule.setSystem(system);
         rule.setName(request.getName());
         rule.setExpressionDsl(request.getExpressionDsl());
@@ -125,6 +146,21 @@ public class RuleService {
     // =========================================================
     // HELPER MAPPERS
     // =========================================================
+    private void validateBPLimits(String expressionDsl) {
+        if (expressionDsl == null || expressionDsl.isEmpty()) return;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.grupo3aor.innovationlab.dto.RuleCondition condition = mapper.readValue(expressionDsl, com.grupo3aor.innovationlab.dto.RuleCondition.class);
+            if ("BP".equalsIgnoreCase(condition.getMetric()) || "Pressão Arterial".equalsIgnoreCase(condition.getMetric())) {
+                if (condition.getThreshold() < 0 || condition.getThreshold() > 300) {
+                    throw new IllegalArgumentException("O valor limite para a Pressão Arterial deve estar entre 0 e 300 mmHg.");
+                }
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.warn("Failed to parse DSL for validation: {}", e.getMessage());
+        }
+    }
+
     private RuleResponse mapToResponse(Rule rule) {
         return RuleResponse.builder()
                 .id(rule.getId())
@@ -135,6 +171,7 @@ public class RuleService {
                 .createdByUserEmail(rule.getCreatedByUser() != null ? rule.getCreatedByUser().getEmail() : "Unknown")
                 .createdAt(rule.getCreatedAt())
                 .active(rule.isActive())
+                .deleted(rule.isDeleted())
                 .build();
     }
 }

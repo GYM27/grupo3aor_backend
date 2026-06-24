@@ -40,4 +40,6 @@ public class RuleResponse {
     
     private boolean active;
 
+    private boolean deleted;
+
 }

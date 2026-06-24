@@ -156,12 +156,12 @@ class RuleServiceTest {
     }
 
     // =========================================================
-    // getAllActiveRules() TESTS
+    // getAllRules() TESTS
     // =========================================================
 
     @Test
-    @DisplayName("getAllActiveRules: deve retornar lista mapeada de regras ativas")
-    void getAllActiveRules_shouldReturnMappedList() {
+    @DisplayName("getAllRules: deve retornar pagina mapeada de regras")
+    void getAllRules_shouldReturnMappedPage() {
         // ARRANGE
         Rule rule1 = Rule.builder()
                 .id(UUID.randomUUID())
@@ -180,25 +180,33 @@ class RuleServiceTest {
                 .active(true)
                 .build();
 
-        when(ruleRepository.findAll()).thenReturn(List.of(rule1, rule2));
+        org.springframework.data.domain.Page<Rule> pagedResponse = new org.springframework.data.domain.PageImpl<>(List.of(rule1, rule2));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        
+        when(ruleRepository.findFilteredRules(null, null, null, false, pageable))
+                .thenReturn(pagedResponse);
 
         // ACT
-        List<RuleResponse> result = ruleService.getAllRules(null);
+        org.springframework.data.domain.Page<RuleResponse> result = ruleService.getAllRules(null, null, "Todas", pageable);
 
         // ASSERT
-        assertThat(result).hasSize(2);
-        assertThat(result).extracting(RuleResponse::getSeverity)
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getContent()).extracting(RuleResponse::getSeverity)
                 .containsExactly(Severity.CRITICO, Severity.ALERTA);
     }
 
     @Test
-    @DisplayName("getAllActiveRules: deve retornar lista vazia quando não há regras ativas")
-    void getAllActiveRules_shouldReturnEmptyList_whenNoActiveRules() {
-        when(ruleRepository.findAll()).thenReturn(List.of());
+    @DisplayName("getAllRules: deve retornar pagina vazia quando não há regras")
+    void getAllRules_shouldReturnEmptyPage_whenNoRules() {
+        org.springframework.data.domain.Page<Rule> emptyPage = new org.springframework.data.domain.PageImpl<>(List.of());
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        
+        when(ruleRepository.findFilteredRules(null, null, null, false, pageable))
+                .thenReturn(emptyPage);
 
-        List<RuleResponse> result = ruleService.getAllRules(null);
+        org.springframework.data.domain.Page<RuleResponse> result = ruleService.getAllRules(null, null, "Todas", pageable);
 
-        assertThat(result).isEmpty();
+        assertThat(result.getContent()).isEmpty();
     }
 
     // =========================================================

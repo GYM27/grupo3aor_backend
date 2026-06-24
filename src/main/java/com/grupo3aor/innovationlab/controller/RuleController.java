@@ -42,20 +42,44 @@ public class RuleController {
     }
 
     /**
-     * Fetches rules, optionally filtering by active state via query parameter.
+     * Lists rules.
      */
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<RuleResponse>> getAllRules(@RequestParam(required = false) Boolean active) {
-        return ResponseEntity.ok(ruleService.getAllRules(active));
+    @AuditableAction(action = "LIST_RULES")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<org.springframework.data.domain.Page<RuleResponse>> getAllRules(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Long systemId,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "active,desc") String sort) {
+            
+        String[] sortParts = sort.split(",");
+        org.springframework.data.domain.Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc") ? 
+            org.springframework.data.domain.Sort.Direction.ASC : org.springframework.data.domain.Sort.Direction.DESC;
+            
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(direction, sortParts[0]));
+        
+        return ResponseEntity.ok(ruleService.getAllRules(name, systemId, status, pageable));
     }
 
     /**
-     * Deactivates a rule.
-     * As requested, this method purely acts as a logical deactivation (soft delete).
-     * It maps to a DELETE request to keep standard REST semantics, but data is NOT destroyed!
+     * Soft-deletes a rule.
+     * The Rule entity's @SQLDelete intercepts this and sets deleted=true.
      */
     @DeleteMapping("/{id}")
+    @AuditableAction(action = "DELETE_RULE")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> deleteRule(@PathVariable UUID id) {
+        ruleService.deleteRule(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Deactivates a rule (sets active=false).
+     */
+    @PutMapping("/{id}/deactivate")
     @AuditableAction(action = "DEACTIVATE_RULE")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deactivateRule(@PathVariable UUID id) {

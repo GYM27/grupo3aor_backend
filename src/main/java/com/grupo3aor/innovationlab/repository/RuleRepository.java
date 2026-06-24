@@ -20,4 +20,16 @@ public interface RuleRepository extends JpaRepository<Rule, UUID> {
     
     List<Rule> findByActive(boolean active);
 
+    @org.springframework.data.jpa.repository.Query("SELECT r FROM Rule r WHERE " +
+            "(:name IS NULL OR LOWER(r.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
+            "(:systemId IS NULL OR r.system.id = :systemId) AND " +
+            "(:active IS NULL OR r.active = :active) AND " +
+            "r.deleted = :deleted")
+    org.springframework.data.domain.Page<Rule> findFilteredRules(
+            @org.springframework.data.repository.query.Param("name") String name,
+            @org.springframework.data.repository.query.Param("systemId") Long systemId,
+            @org.springframework.data.repository.query.Param("active") Boolean active,
+            @org.springframework.data.repository.query.Param("deleted") boolean deleted,
+            org.springframework.data.domain.Pageable pageable);
+
 }
