@@ -98,15 +98,17 @@ public class PhysiologicalReadingService {
             entitiesToSave.add(reading);
         }
 
-        // 3. Save EVERYTHING at once (True Batch Insert)
-        List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
-
-        // 4. Evaluate rules locally in an optimized batch without N+1 query problems and without flooding WebSockets
+        // 3. Evaluate rules locally in an optimized batch BEFORE hitting the database.
+        // This pure RAM computation is extremely fast and ensures alerts are broadcasted
+        // instantly via WebSocket without waiting for the slow DB insert.
         try {
-            ruleEvaluatorService.evaluateReadingsBatch(savedReadings);
+            ruleEvaluatorService.evaluateReadingsBatch(entitiesToSave);
         } catch (Exception e) {
             log.error("Failed to evaluate rules for batch: {}", e.getMessage(), e);
         }
+
+        // 4. Save EVERYTHING at once (True Batch Insert)
+        List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
 
         return savedReadings.stream()
                 .map(mapper::toDto)
