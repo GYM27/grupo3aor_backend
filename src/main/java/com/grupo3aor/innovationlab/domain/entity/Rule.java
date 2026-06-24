@@ -13,6 +13,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.grupo3aor.innovationlab.dto.RuleCondition;
 
 import java.util.UUID;
@@ -103,7 +104,7 @@ public class Rule extends Auditable {
     // I moved the math logic here so the entity knows its own limits!
     // =========================================================
     @Transient
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new YAMLMapper();
 
     @Transient
     private RuleCondition cachedCondition;
@@ -143,6 +144,22 @@ public class Rule extends Auditable {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public Integer getPersistence() {
+        if (this.cachedCondition != null && this.cachedCondition.getPersistence() != null) {
+            return this.cachedCondition.getPersistence();
+        }
+        // Force parse if not cached yet
+        if (this.expressionDsl != null && !this.expressionDsl.isEmpty()) {
+            try {
+                RuleCondition cond = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+                return cond.getPersistence() != null ? cond.getPersistence() : 0;
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+        return 0;
     }
 
     // =========================================================

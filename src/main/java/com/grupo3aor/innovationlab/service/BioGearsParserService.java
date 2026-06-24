@@ -48,7 +48,7 @@ public class BioGearsParserService {
             }
             
             // Dynamically map BioGears columns to indexes
-            int timeIdx = -1, hrIdx = -1, spo2Idx = -1, sbpIdx = -1, tempIdx = -1;
+            int timeIdx = -1, hrIdx = -1, spo2Idx = -1, sbpIdx = -1, tempIdx = -1, rrIdx = -1;
             for (int i = 0; i < header.length; i++) {
                 String col = header[i].trim();
                 if (col.startsWith("Time")) timeIdx = i;
@@ -56,6 +56,7 @@ public class BioGearsParserService {
                 else if (col.startsWith("OxygenSaturation")) spo2Idx = i;
                 else if (col.startsWith("SystolicArterialPressure")) sbpIdx = i;
                 else if (col.startsWith("CoreTemperature")) tempIdx = i;
+                else if (col.startsWith("RespirationRate")) rrIdx = i;
             }
             
             if (timeIdx == -1) throw new IllegalArgumentException("CSV missing 'Time(s)' column");
@@ -91,6 +92,11 @@ public class BioGearsParserService {
                 // Parse Core Temperature
                 if (tempIdx != -1 && tempIdx < row.length && !row[tempIdx].isEmpty()) {
                     readings.add(createDTO(simulationId, "TEMP", "C", row[tempIdx], timestamp, 1.0));
+                }
+
+                // Parse Respiration Rate
+                if (rrIdx != -1 && rrIdx < row.length && !row[rrIdx].isEmpty()) {
+                    readings.add(createDTO(simulationId, "RR", "1/min", row[rrIdx], timestamp, 1.0));
                 }
             }
         }

@@ -12,6 +12,7 @@ public class RuleCondition {
     private String metric;
     private String operator;
     private Double threshold;
+    private Integer persistence;
     private java.util.List<RuleCondition> conditions;
 
 }
