@@ -201,11 +201,11 @@ public class SimulationEngineService {
         metricsCache.remove(sim.getId());
         
         try {
-            com.grupo3aor.innovationlab.dto.AlertDTO finishAlert = com.grupo3aor.innovationlab.dto.AlertDTO.builder()
-                    .timestamp(LocalDateTime.now())
-                    .rule(com.grupo3aor.innovationlab.dto.RuleDTO.builder().severity(com.grupo3aor.innovationlab.domain.enums.AlertSeverity.INFO).build())
-                    .valueAtTrigger("[SYSTEM_END_SIMULATION]")
-                    .build();
+            com.grupo3aor.innovationlab.dto.AlertDTO finishAlert = new com.grupo3aor.innovationlab.dto.AlertDTO();
+            finishAlert.setTimestamp(LocalDateTime.now());
+            finishAlert.setSeverity("INFO");
+            finishAlert.setValueAtTrigger(0.0);
+            finishAlert.setSystemName("[SYSTEM_END_SIMULATION]");
             messagingTemplate.convertAndSend("/topic/simulations/" + sim.getId() + "/alerts", finishAlert);
         } catch (Exception e) {
             log.warn("Failed to broadcast end of simulation for {}", sim.getId(), e);
