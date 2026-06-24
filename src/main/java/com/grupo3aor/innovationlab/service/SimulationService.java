@@ -69,9 +69,9 @@ public class SimulationService {
         Simulation sim = simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
 
-        // We must protect this block to prevent ending a simulation that is already canceled!
-        if (sim.getStatus() == SimulationStatus.CANCELADA) {
-            throw new IllegalStateException("Simulation is already canceled.");
+        // We must protect this block to prevent ending a simulation that is already finalized or canceled!
+        if (sim.getStatus() == SimulationStatus.FINALIZADA || sim.getStatus() == SimulationStatus.CANCELADA) {
+            throw new IllegalStateException("Simulation is already finalized or canceled.");
         }
 
         if (cutOffSeconds != null) {
