@@ -12,7 +12,7 @@ public interface GlobalSettingsRepository extends JpaRepository<GlobalSettings, 
             GlobalSettings settings = new GlobalSettings();
             settings.setId(1L);
             settings.setSessionTimeoutMinutes(30);
-            settings.setIsBioGearsEnabled(false);
+            settings.setIsHumanBodyEnabled(false);
             settings.setCreatedBy("system");
             settings.setUpdatedBy("system");
             return save(settings);
