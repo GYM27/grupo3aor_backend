@@ -156,45 +156,6 @@ public class EvaluationReportService {
                 document.add(alertTable);
             }
             
-            document.add(new com.lowagie.text.Paragraph("\n"));
-
-            // 2. Tabela de Leituras Fisiologicas (Resumo / Amostra)
-            document.add(new Paragraph("Resumo de Leituras Fisiologicas", subtitleFont));
-            document.add(new Paragraph("\n"));
-            
-            List<PhysiologicalReading> latestReadings = readingRepository.findTop20BySimulation_IdOrderByTimestampDesc(simulation.getId());
-            if (latestReadings == null || latestReadings.isEmpty()) {
-                document.add(new Paragraph("Nenhuma leitura captada.", textFont));
-            } else {
-                PdfPTable readingTable = new PdfPTable(3);
-                readingTable.setWidthPercentage(100);
-                readingTable.setWidths(new float[]{2f, 2f, 1.5f});
-                
-                readingTable.addCell(new Phrase("Sinal Vital", boldFont));
-                readingTable.addCell(new Phrase("Valor", boldFont));
-                readingTable.addCell(new Phrase("Instante", boldFont));
-                
-                // Since findTop20BySimulation_IdOrderByTimestampDesc returned them in descending order,
-                // we iterate backwards from the end of the list to the beginning to print them chronologically (ascending).
-                for (int i = latestReadings.size() - 1; i >= 0; i--) {
-                    PhysiologicalReading r = latestReadings.get(i);
-                    readingTable.addCell(new Phrase(r.getHandle(), textFont));
-                    readingTable.addCell(new Phrase(r.getValue() + " " + r.getUnit(), textFont));
-
-                    String readingInstante = "N/A";
-                    if (r.getTimestamp() != null && firstReading != null) {
-                        long diffSecs = Duration.between(firstReading.getTimestamp(), r.getTimestamp()).getSeconds();
-                        diffSecs = Math.max(0, diffSecs);
-                        readingInstante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
-                    } else if (r.getTimestamp() != null) {
-                        readingInstante = r.getTimestamp().format(timeFormatter);
-                    }
-
-                    readingTable.addCell(new Phrase(readingInstante, textFont));
-                }
-                document.add(readingTable);
-            }
-            
             // Fechar o documento finaliza a escrita no ByteArrayOutputStream
             document.close();
             return baos.toByteArray();

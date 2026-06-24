@@ -32,6 +32,9 @@ public class RuleEvaluatorService {
     // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
     private final YAMLMapper yamlMapper = new YAMLMapper();
 
+    // Cache for tracking persistence in live events. Key: simId_ruleId, Value: timestamp of first anomalous reading
+    private final java.util.concurrent.ConcurrentHashMap<String, java.time.LocalDateTime> liveBreachTracker = new java.util.concurrent.ConcurrentHashMap<>();
+
     /**
      * Evaluates a physiological reading against all active rules in the system.
      * If a rule's conditions are met, it automatically generates and broadcasts an Alert.
@@ -46,39 +49,56 @@ public class RuleEvaluatorService {
             try {
                 // The Entity (Rule) makes the decision in an encapsulated manner (Rich Domain Model)
                 boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
+                String trackingKey = reading.getSimulation().getId().toString() + "_" + rule.getId().toString();
 
-                // If the rule triggers, we verify if an active alert already exists to avoid spamming the DB
                 if (isTriggered) {
-                    boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
-                        reading.getSimulation(), rule, AlertStatus.ATIVO
-                    );
-
-                    if (!alreadyAlerting) {
-                            Alert newAlert = Alert.builder()
-                                .simulation(reading.getSimulation())
-                                .rule(rule)
-                                .status(AlertStatus.ATIVO)
-                                .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
-                                .timestamp(reading.getTimestamp())
-                                .build();
-                        
-                        alertRepository.save(newAlert);
-
-                        // Publish to the simulation-specific topic so the Dashboard receives it.
-                        // We use a safe Map instead of serializing the JPA entity directly
-                        // to avoid LazyInitializationException on LAZY relations.
-                        String alertTopic = "/topic/simulations/" + reading.getSimulation().getId() + "/alerts";
-                        java.util.Map<String, Object> alertPayload = java.util.Map.of(
-                            "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
-                            "simulationId",   reading.getSimulation().getId().toString(),
-                            "severity",       rule.getSeverity().name(),
-                            "systemName",     rule.getSystem() != null ? rule.getSystem().getSystemName() : "Unknown",
-                            "valueAtTrigger", reading.getValue(),
-                            "timestamp",      reading.getTimestamp().toString(),
-                            "expressionDsl",  rule.getExpressionDsl() != null ? rule.getExpressionDsl() : ""
-                        );
-                        messagingTemplate.convertAndSend(alertTopic, alertPayload);
+                    java.time.LocalDateTime firstBreach = liveBreachTracker.get(trackingKey);
+                    if (firstBreach == null) {
+                        liveBreachTracker.put(trackingKey, reading.getTimestamp());
+                        firstBreach = reading.getTimestamp();
                     }
+                    
+                    long diffSeconds = java.time.temporal.ChronoUnit.SECONDS.between(firstBreach, reading.getTimestamp());
+                    int requiredSeconds = rule.getPersistence() != null ? rule.getPersistence() : 0;
+
+                    // If the rule triggers, we verify if an active alert already exists to avoid spamming the DB
+                    if (diffSeconds >= requiredSeconds) {
+                        boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
+                            reading.getSimulation(), rule, AlertStatus.ATIVO
+                        );
+
+                        if (!alreadyAlerting) {
+                                Alert newAlert = Alert.builder()
+                                    .simulation(reading.getSimulation())
+                                    .rule(rule)
+                                    .status(AlertStatus.ATIVO)
+                                    .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
+                                    .timestamp(reading.getTimestamp())
+                                    .build();
+                            
+                            alertRepository.save(newAlert);
+
+                            // Publish to the simulation-specific topic so the Dashboard receives it.
+                            // We use a safe Map instead of serializing the JPA entity directly
+                            // to avoid LazyInitializationException on LAZY relations.
+                            String alertTopic = "/topic/simulations/" + reading.getSimulation().getId() + "/alerts";
+                            java.util.Map<String, Object> alertPayload = java.util.Map.of(
+                                "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
+                                "simulationId",   reading.getSimulation().getId().toString(),
+                                "severity",       rule.getSeverity().name(),
+                                "systemName",     rule.getSystem() != null ? rule.getSystem().getSystemName() : "Unknown",
+                                "valueAtTrigger", reading.getValue(),
+                                "timestamp",      reading.getTimestamp().toString(),
+                                "expressionDsl",  rule.getExpressionDsl() != null ? rule.getExpressionDsl() : ""
+                            );
+                            messagingTemplate.convertAndSend(alertTopic, alertPayload);
+                        }
+                        // Reset the persistence tracker since we already triggered the critical alert
+                        liveBreachTracker.remove(trackingKey);
+                    }
+                } else {
+                    // Patient stabilized. Reset the persistence tracker immediately (strict medical rigidity).
+                    liveBreachTracker.remove(trackingKey);
                 }
             } catch (Exception e) {
                 log.error("Failed to parse or evaluate YAML rule: {}", rule.getId(), e);
@@ -101,6 +121,8 @@ public class RuleEvaluatorService {
 
         // In-memory cache to track which rules have already triggered an active alert for the simulation
         java.util.Set<String> activeAlertsCache = new java.util.HashSet<>();
+        // In-memory cache for persistence tracking during this batch (Timestamp of first breach)
+        java.util.Map<String, java.time.LocalDateTime> batchBreachTracker = new java.util.HashMap<>();
         
         com.grupo3aor.innovationlab.domain.entity.Simulation currentSim = readings.get(0).getSimulation();
         // Since we check the DB only once per simulation, this makes 10,000 checks drop to 1.
@@ -117,21 +139,36 @@ public class RuleEvaluatorService {
             for (Rule rule : activeRules) {
                 try {
                     boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
+                    String cacheKey = reading.getSimulation().getId().toString() + "_" + rule.getId().toString();
 
                     if (isTriggered) {
-                        String cacheKey = reading.getSimulation().getId().toString() + "_" + rule.getId().toString();
-                        if (!activeAlertsCache.contains(cacheKey)) {
-                            Alert newAlert = Alert.builder()
-                                .simulation(reading.getSimulation())
-                                .rule(rule)
-                                .status(AlertStatus.ATIVO)
-                                .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
-                                .timestamp(reading.getTimestamp())
-                                .build();
-                            
-                            newAlertsToSave.add(newAlert);
-                            activeAlertsCache.add(cacheKey); // Mark as already alerting in cache
+                        java.time.LocalDateTime firstBreach = batchBreachTracker.get(cacheKey);
+                        if (firstBreach == null) {
+                            batchBreachTracker.put(cacheKey, reading.getTimestamp());
+                            firstBreach = reading.getTimestamp();
                         }
+                        
+                        long diffSeconds = java.time.temporal.ChronoUnit.SECONDS.between(firstBreach, reading.getTimestamp());
+                        int requiredSeconds = rule.getPersistence() != null ? rule.getPersistence() : 0;
+
+                        if (diffSeconds >= requiredSeconds) {
+                            if (!activeAlertsCache.contains(cacheKey)) {
+                                Alert newAlert = Alert.builder()
+                                    .simulation(reading.getSimulation())
+                                    .rule(rule)
+                                    .status(AlertStatus.ATIVO)
+                                    .valueAtTrigger(reading.getValue() != null ? reading.getValue().doubleValue() : null)
+                                    .timestamp(reading.getTimestamp())
+                                    .build();
+                                
+                                newAlertsToSave.add(newAlert);
+                                activeAlertsCache.add(cacheKey); // Mark as already alerting in cache
+                            }
+                            batchBreachTracker.remove(cacheKey);
+                        }
+                    } else {
+                        // Patient stabilized. Reset the persistence tracker immediately.
+                        batchBreachTracker.remove(cacheKey);
                     }
                 } catch (Exception e) {
                     log.error("Failed to parse or evaluate YAML rule during batch: {}", rule.getId(), e);
