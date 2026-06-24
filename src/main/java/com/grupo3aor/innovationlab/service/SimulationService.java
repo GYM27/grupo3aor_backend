@@ -6,6 +6,8 @@ import com.grupo3aor.innovationlab.domain.entity.ClinicalScenario;
 import com.grupo3aor.innovationlab.domain.enums.SimulationStatus;
 import com.grupo3aor.innovationlab.dto.SimulationRequest;
 import com.grupo3aor.innovationlab.dto.SimulationResponse;
+import com.grupo3aor.innovationlab.dto.AlertEventDTO;
+import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.ClinicalScenarioRepository;
@@ -175,13 +177,32 @@ public class SimulationService {
     // HELPER MAPPERS
     // =========================================================
     private SimulationResponse mapToResponse(Simulation sim) {
+        String scenarioName = sim.getScenario() != null ? sim.getScenario().getName() : "Unknown Scenario";
+        String studentName = sim.getUser() != null ? (sim.getUser().getFirstName() + " " + sim.getUser().getLastName()) : "Unknown User";
+        
+        List<AlertEventDTO> events = alertRepository.findBySimulation_Id(sim.getId()).stream()
+                .map(alert -> {
+                    String ruleName = (alert.getRule() != null && alert.getRule().getName() != null && !alert.getRule().getName().isEmpty())
+                            ? alert.getRule().getName()
+                            : "Sem Nome";
+                    return AlertEventDTO.builder()
+                        .timestamp(alert.getTimestamp())
+                        .description("Regra " + ruleName + " acionada (" + String.format("%.1f", alert.getValueAtTrigger()) + ")")
+                        .type(alert.getStatus().name().toLowerCase())
+                        .build();
+                })
+                .collect(Collectors.toList());
+
         return SimulationResponse.builder()
                 .id(sim.getId())
                 .scenarioId(sim.getScenario() != null ? sim.getScenario().getId() : null)
+                .scenarioName(scenarioName)
                 .userEmail(sim.getUser() != null ? sim.getUser().getEmail() : "Unknown")
+                .studentName(studentName)
                 .startedAt(sim.getStartedAt())
                 .endedAt(sim.getEndedAt())
                 .status(sim.getStatus())
+                .events(events)
                 .build();
     }
 }
