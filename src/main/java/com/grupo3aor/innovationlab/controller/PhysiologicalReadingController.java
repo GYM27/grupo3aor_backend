@@ -13,8 +13,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
+
+import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
+import java.io.InputStream;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.MappingIterator;
 
 /**
  * REST Controller responsible for handling the ingestion and retrieval of physiological readings.
@@ -27,10 +34,12 @@ public class PhysiologicalReadingController {
 
     private final PhysiologicalReadingService service;
     private final BioGearsParserService parserService;
+    private final ObjectMapper objectMapper;
 
-    public PhysiologicalReadingController(PhysiologicalReadingService service, BioGearsParserService parserService) {
+    public PhysiologicalReadingController(PhysiologicalReadingService service, BioGearsParserService parserService, ObjectMapper objectMapper) {
         this.service = service;
         this.parserService = parserService;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping
@@ -56,6 +65,43 @@ public class PhysiologicalReadingController {
             HttpServletRequest request) {
         service.createReadingAsync(dto, authentication.getName(), request.getRemoteAddr());
         return ResponseEntity.accepted().build();
+    }
+
+    /**
+     * Ingests physiological readings coming from a continuous HTTP stream (NDJSON format).
+     * This fulfills the stream submission requirement (5.4.2) using an HTTP continuous connection.
+     */
+    @PostMapping(value = "/stream-continuous", consumes = "application/x-ndjson")
+    public ResponseEntity<?> postReadingContinuousStream(
+            InputStream inputStream,
+            Authentication authentication,
+            HttpServletRequest request) {
+        String userEmail = authentication.getName();
+        String ipAddress = request.getRemoteAddr();
+
+        try (MappingIterator<PhysiologicalReadingDTO> iterator = objectMapper.readerFor(PhysiologicalReadingDTO.class).readValues(inputStream)) {
+            while (iterator.hasNextValue()) {
+                PhysiologicalReadingDTO dto = iterator.nextValue();
+                service.createReadingAsync(dto, userEmail, ipAddress);
+            }
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Error reading continuous stream", e);
+        }
+
+        return ResponseEntity.accepted().build();
+    }
+
+    /**
+     * Ingests physiological readings coming from a continuous WebSocket stream.
+     * This fulfills the stream submission requirement (5.4.2) using a persistent connection.
+     *
+     * @param dto       The reading payload sent over STOMP
+     * @param principal The security principal (if available)
+     */
+    @MessageMapping("/readings/stream")
+    public void streamReadingWebSocket(@Payload @Valid PhysiologicalReadingDTO dto, Principal principal) {
+        String userEmail = principal != null ? principal.getName() : "system@stream";
+        service.createReadingAsync(dto, userEmail, "websocket");
     }
 
     /**
