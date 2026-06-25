@@ -47,6 +47,12 @@ public class RuleEvaluatorService {
         
         for (Rule rule : ruleRepository.findByActiveTrue()) {
             try {
+                // Check if this rule actually applies to this specific reading handle (e.g. HR vs SpO2)
+                boolean matches = rule.isApplicableTo(reading.getHandle());
+
+                // If the reading doesn't belong to this rule, ignore it completely to avoid wiping persistence.
+                if (!matches) continue;
+
                 // The Entity (Rule) makes the decision in an encapsulated manner (Rich Domain Model)
                 boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
                 String trackingKey = reading.getSimulation().getId().toString() + "_" + rule.getId().toString();
@@ -133,11 +139,15 @@ public class RuleEvaluatorService {
             }
         }
 
-        java.util.List<Alert> newAlertsToSave = new java.util.ArrayList<>();
-
         for (PhysiologicalReading reading : readings) {
             for (Rule rule : activeRules) {
                 try {
+                    // Check if this rule actually applies to this specific reading handle (e.g. HR vs SpO2)
+                    boolean matches = rule.isApplicableTo(reading.getHandle());
+
+                    // If the reading doesn't belong to this rule, ignore it completely to avoid wiping persistence.
+                    if (!matches) continue;
+
                     boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), reading.getValue() != null ? reading.getValue().doubleValue() : null);
                     String cacheKey = reading.getSimulation().getId().toString() + "_" + rule.getId().toString();
 
@@ -161,7 +171,21 @@ public class RuleEvaluatorService {
                                     .timestamp(reading.getTimestamp())
                                     .build();
                                 
-                                newAlertsToSave.add(newAlert);
+                                // To eliminate the frontend delay, we save and broadcast the alert IMMEDIATELY!
+                                newAlert = alertRepository.save(newAlert);
+                                
+                                String alertTopic = "/topic/simulations/" + currentSim.getId() + "/alerts";
+                                java.util.Map<String, Object> alertPayload = java.util.Map.of(
+                                    "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
+                                    "simulationId",   currentSim.getId().toString(),
+                                    "severity",       newAlert.getRule().getSeverity().name(),
+                                    "systemName",     newAlert.getRule().getSystem() != null ? newAlert.getRule().getSystem().getSystemName() : "Unknown",
+                                    "valueAtTrigger", newAlert.getValueAtTrigger(),
+                                    "timestamp",      newAlert.getTimestamp().toString(),
+                                    "expressionDsl",  newAlert.getRule().getExpressionDsl() != null ? newAlert.getRule().getExpressionDsl() : ""
+                                );
+                                messagingTemplate.convertAndSend(alertTopic, alertPayload);
+
                                 activeAlertsCache.add(cacheKey); // Mark as already alerting in cache
                             }
                             batchBreachTracker.remove(cacheKey);
@@ -173,25 +197,6 @@ public class RuleEvaluatorService {
                 } catch (Exception e) {
                     log.error("Failed to parse or evaluate YAML rule during batch: {}", rule.getId(), e);
                 }
-            }
-        }
-
-        // Save all newly generated alerts in one batch
-        if (!newAlertsToSave.isEmpty()) {
-            alertRepository.saveAll(newAlertsToSave);
-
-            String alertTopic = "/topic/simulations/" + currentSim.getId() + "/alerts";
-            for (Alert newAlert : newAlertsToSave) {
-                java.util.Map<String, Object> alertPayload = java.util.Map.of(
-                    "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
-                    "simulationId",   currentSim.getId().toString(),
-                    "severity",       newAlert.getRule().getSeverity().name(),
-                    "systemName",     newAlert.getRule().getSystem() != null ? newAlert.getRule().getSystem().getSystemName() : "Unknown",
-                    "valueAtTrigger", newAlert.getValueAtTrigger(),
-                    "timestamp",      newAlert.getTimestamp().toString(),
-                    "expressionDsl",  newAlert.getRule().getExpressionDsl() != null ? newAlert.getRule().getExpressionDsl() : ""
-                );
-                messagingTemplate.convertAndSend(alertTopic, alertPayload);
             }
         }
     }
