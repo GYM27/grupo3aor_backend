@@ -181,9 +181,9 @@ public class DatabaseSeeder implements CommandLineRunner {
             System.out.println("[SEEDER] Inserindo Utilizadores iniciais...");
 
             com.grupo3aor.innovationlab.domain.entity.User luis = com.grupo3aor.innovationlab.domain.entity.User.builder()
-                .firstName("Luís")
+                .firstName("Admin")
                 .lastName("Admin")
-                .email("luis@gmail.com")
+                .email("admin@gmail.com")
                 .passwordHash(passwordEncoder.encode("Pass1234#"))
                 .perfil(com.grupo3aor.innovationlab.domain.enums.PerfilEnum.ADMIN)
                 .accountActivated(true)
