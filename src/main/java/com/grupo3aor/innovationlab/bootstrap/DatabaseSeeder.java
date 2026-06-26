@@ -193,7 +193,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .build();
 
             userRepository.save(luis);
-            System.out.println("[SEEDER] Utilizador luis@gmail.com criado com sucesso!");
+            System.out.println("[SEEDER] Utilizador admin@gmail.com criado com sucesso!");
         }
     }
 }

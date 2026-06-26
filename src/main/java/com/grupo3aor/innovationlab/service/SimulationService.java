@@ -11,6 +11,9 @@ import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.ClinicalScenarioRepository;
+import com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository;
+import com.grupo3aor.innovationlab.repository.AlertRepository;
+import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
 import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,8 +38,8 @@ public class SimulationService {
     private final ClinicalScenarioRepository scenarioRepository;
     private final SimulationEngineService simulationEngineService;
     private final RuleEvaluatorService ruleEvaluatorService;
-    private final com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository readingRepository;
-    private final com.grupo3aor.innovationlab.repository.AlertRepository alertRepository;
+    private final PhysiologicalReadingRepository readingRepository;
+    private final AlertRepository alertRepository;
 
     /**
      * Let's start a new simulation securely from the user's request.
@@ -78,7 +81,7 @@ public class SimulationService {
         }
 
         if (cutOffSeconds != null) {
-            com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulationId);
+            PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulationId);
             if (firstReading != null) {
                 LocalDateTime exactBaseTime = firstReading.getTimestamp();
                 LocalDateTime cutOffAbsolute = exactBaseTime.plusNanos((long)(cutOffSeconds * 1_000_000_000L)).plusSeconds(1);

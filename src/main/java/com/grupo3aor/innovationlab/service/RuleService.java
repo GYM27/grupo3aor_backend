@@ -9,6 +9,9 @@ import com.grupo3aor.innovationlab.repository.RuleRepository;
 import com.grupo3aor.innovationlab.repository.UserRepository;
 import com.grupo3aor.innovationlab.repository.PhysiologicalSystemRepository;
 import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.grupo3aor.innovationlab.dto.RuleCondition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -122,8 +125,12 @@ public class RuleService {
      */
     @Transactional
     public RuleResponse updateRule(UUID ruleId, RuleRequest request, String userEmail) {
-        Rule rule = ruleRepository.findById(ruleId)
+        Rule oldRule = ruleRepository.findById(ruleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
+
+        if (oldRule.isDeleted()) {
+            throw new IllegalStateException("Esta regra já se encontra arquivada e não pode ser modificada.");
+        }
 
         PhysiologicalSystem system = systemRepository.findById(request.getSystemId())
                 .orElseThrow(() -> new ResourceNotFoundException("Physiological System not found with ID: " + request.getSystemId()));
@@ -131,17 +138,29 @@ public class RuleService {
         // Validation for Blood Pressure Limits
         validateBPLimits(request.getExpressionDsl());
 
-        rule.setSystem(system);
-        rule.setName(request.getName());
-        rule.setExpressionDsl(request.getExpressionDsl());
-        rule.setSeverity(request.getSeverity());
-        rule.setAnalyticalJustification(request.getAnalyticalJustification());
-        // Fix: populate the audit field that was being silently ignored
-        rule.setUpdatedBy(userEmail);
+        // Passo 1: Arquivar a regra antiga (Soft Delete)
+        oldRule.setDeleted(true);
+        oldRule.setActive(false);
+        oldRule.setUpdatedBy(userEmail);
+        ruleRepository.save(oldRule);
 
-        log.info("[AUDIT] Action: RULE_UPDATED | Target ID: {} | Operator: {}", ruleId, userEmail);
+        log.info("[AUDIT] Action: RULE_ARCHIVED | Old Target ID: {} | Operator: {}", ruleId, userEmail);
 
-        Rule saved = ruleRepository.save(rule);
+        // Passo 2: Criar a nova versão da regra (Versioning)
+        Rule newRule = Rule.builder()
+                .name(request.getName())
+                .expressionDsl(request.getExpressionDsl())
+                .severity(request.getSeverity())
+                .analyticalJustification(request.getAnalyticalJustification())
+                .system(system)
+                .createdBy(userEmail)
+                .updatedBy(userEmail)
+                .build();
+
+        Rule saved = ruleRepository.save(newRule);
+        
+        log.info("[AUDIT] Action: RULE_VERSIONED | New Target ID: {} | Operator: {}", saved.getId(), userEmail);
+        
         return mapToResponse(saved);
     }
 
@@ -151,14 +170,14 @@ public class RuleService {
     private void validateBPLimits(String expressionDsl) {
         if (expressionDsl == null || expressionDsl.isEmpty()) return;
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            com.grupo3aor.innovationlab.dto.RuleCondition condition = mapper.readValue(expressionDsl, com.grupo3aor.innovationlab.dto.RuleCondition.class);
+            ObjectMapper mapper = new ObjectMapper();
+            RuleCondition condition = mapper.readValue(expressionDsl, RuleCondition.class);
             if ("BP".equalsIgnoreCase(condition.getMetric()) || "Pressão Arterial".equalsIgnoreCase(condition.getMetric())) {
                 if (condition.getActivationThreshold() != null && (condition.getActivationThreshold() < 0 || condition.getActivationThreshold() > 300)) {
                     throw new IllegalArgumentException("O valor limite para a Pressão Arterial deve estar entre 0 e 300 mmHg.");
                 }
             }
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JsonProcessingException e) {
             log.warn("Failed to parse DSL for validation: {}", e.getMessage());
         }
     }
