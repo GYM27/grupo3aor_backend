@@ -68,7 +68,7 @@ public class ClinicalScenarioController {
                 return ResponseEntity.badRequest().body("Ficheiro inválido. Apenas ficheiros JSON são permitidos.");
             }
             if (file.getSize() > 5 * 1024 * 1024) { // Limite de 5MB
-                return ResponseEntity.badRequest().body("O ficheiro JSON é demasiado grande (limite: 5MB).");
+                return ResponseEntity.badRequest().body("O ficheiro é demasiado grande (limite: 5MB).");
             }
 
             // 1. A Magia do Jackson: Lê o input stream do ficheiro para o DTO

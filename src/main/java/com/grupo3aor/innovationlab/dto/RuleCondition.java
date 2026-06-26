@@ -10,9 +10,16 @@ import lombok.NoArgsConstructor;
 public class RuleCondition {
 
     private String metric;
-    private String operator;
-    private Double threshold;
-    private Integer persistence;
+    private String operator; // Re-used for activation logic
+    
+    // Degradation phase
+    private Double activationThreshold;
+    private Integer activationPersistence;
+    
+    // Recovery phase
+    private Double resolutionThreshold;
+    private Integer resolutionPersistence;
+    
     private java.util.List<RuleCondition> conditions;
 
 }

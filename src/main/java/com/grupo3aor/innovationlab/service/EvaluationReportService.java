@@ -182,7 +182,7 @@ public class EvaluationReportService {
                     alert.getValueAtTrigger(),
                     verb,
                     condition.getOperator(),
-                    condition.getThreshold());
+                    condition.getActivationThreshold() != null ? condition.getActivationThreshold() : 0.0);
         } catch (Exception e) {
             return String.format("O valor %.2f disparou a condição analítica: %s", alert.getValueAtTrigger(), alert.getRule().getExpressionDsl());
         }

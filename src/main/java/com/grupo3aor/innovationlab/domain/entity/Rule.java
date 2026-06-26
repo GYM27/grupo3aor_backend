@@ -162,10 +162,12 @@ public class Rule extends Auditable {
 
             if (!matches) return false;
 
+            if (this.cachedCondition.getActivationThreshold() == null) return false;
+
             switch (this.cachedCondition.getOperator()) {
-                case ">": return value.compareTo(this.cachedCondition.getThreshold()) > 0;
-                case "<": return value.compareTo(this.cachedCondition.getThreshold()) < 0;
-                case "==": return value.compareTo(this.cachedCondition.getThreshold()) == 0;
+                case ">": return value.compareTo(this.cachedCondition.getActivationThreshold()) > 0;
+                case "<": return value.compareTo(this.cachedCondition.getActivationThreshold()) < 0;
+                case "==": return value.compareTo(this.cachedCondition.getActivationThreshold()) == 0;
                 default: return false;
             }
         } catch (Exception e) {
@@ -173,7 +175,49 @@ public class Rule extends Auditable {
         }
     }
 
-    public Integer getPersistence() {
+    public boolean isResolvedBy(String handle, Double value) {
+        if (this.expressionDsl == null || this.expressionDsl.isEmpty()) return false;
+        try {
+            if (this.cachedCondition == null) {
+                this.cachedCondition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+            }
+            
+            String metric = this.cachedCondition.getMetric();
+            boolean matches = false;
+            
+            if ("HEART_RATE".equalsIgnoreCase(metric)) {
+                matches = "HeartRate".equalsIgnoreCase(handle) || "Cardiovascular".equalsIgnoreCase(handle) || "HR".equalsIgnoreCase(handle);
+            } else if ("SPO2".equalsIgnoreCase(metric)) {
+                matches = "OxygenSaturation".equalsIgnoreCase(handle) || "SpO2".equalsIgnoreCase(handle) || "Respiratory".equalsIgnoreCase(handle);
+            } else if ("BP".equalsIgnoreCase(metric)) {
+                matches = "ArterialPressure_Systolic".equalsIgnoreCase(handle) || "SystolicArterialPressure".equalsIgnoreCase(handle) || "SBP".equalsIgnoreCase(handle);
+            } else if ("RR".equalsIgnoreCase(metric)) {
+                matches = "RespirationRate".equalsIgnoreCase(handle);
+            } else if ("TEMP".equalsIgnoreCase(metric) || "TEMPERATURE".equalsIgnoreCase(metric)) {
+                matches = "CoreTemperature".equalsIgnoreCase(handle) || "TEMP".equalsIgnoreCase(handle);
+            } else {
+                matches = metric != null && metric.equalsIgnoreCase(handle);
+            }
+
+            if (!matches) return false;
+
+            if (this.cachedCondition.getResolutionThreshold() == null) return true; // If no resolution defined, act as if resolved.
+
+            // The operator for resolution is implicitly the opposite for > and <, but we can also just check explicitly:
+            // If the activation was ">", resolution is when it drops below the resolutionThreshold.
+            switch (this.cachedCondition.getOperator()) {
+                case ">": return value.compareTo(this.cachedCondition.getResolutionThreshold()) < 0;
+                case "<": return value.compareTo(this.cachedCondition.getResolutionThreshold()) > 0;
+                // For == or outside bounds, if resolution is not clear, we rely on the threshold or assume false.
+                case "==": return value.compareTo(this.cachedCondition.getResolutionThreshold()) != 0;
+                default: return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Integer getActivationPersistence() {
         if (this.cachedCondition == null) {
             if (this.expressionDsl != null && !this.expressionDsl.isEmpty()) {
                 try {
@@ -185,7 +229,22 @@ public class Rule extends Auditable {
                 return 0;
             }
         }
-        return this.cachedCondition.getPersistence() != null ? this.cachedCondition.getPersistence() : 0;
+        return this.cachedCondition.getActivationPersistence() != null ? this.cachedCondition.getActivationPersistence() : 0;
+    }
+
+    public Integer getResolutionPersistence() {
+        if (this.cachedCondition == null) {
+            if (this.expressionDsl != null && !this.expressionDsl.isEmpty()) {
+                try {
+                    this.cachedCondition = MAPPER.readValue(this.expressionDsl, RuleCondition.class);
+                } catch (Exception e) {
+                    return 0;
+                }
+            } else {
+                return 0;
+            }
+        }
+        return this.cachedCondition.getResolutionPersistence() != null ? this.cachedCondition.getResolutionPersistence() : 0;
     }
 
     // =========================================================

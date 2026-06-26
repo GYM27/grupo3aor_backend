@@ -152,7 +152,7 @@ public class RuleService {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.grupo3aor.innovationlab.dto.RuleCondition condition = mapper.readValue(expressionDsl, com.grupo3aor.innovationlab.dto.RuleCondition.class);
             if ("BP".equalsIgnoreCase(condition.getMetric()) || "Pressão Arterial".equalsIgnoreCase(condition.getMetric())) {
-                if (condition.getThreshold() < 0 || condition.getThreshold() > 300) {
+                if (condition.getActivationThreshold() != null && (condition.getActivationThreshold() < 0 || condition.getActivationThreshold() > 300)) {
                     throw new IllegalArgumentException("O valor limite para a Pressão Arterial deve estar entre 0 e 300 mmHg.");
                 }
             }
