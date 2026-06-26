@@ -16,6 +16,7 @@ import java.util.UUID;
 @Repository
 public interface RuleRepository extends JpaRepository<Rule, UUID> {
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"system"})
     List<Rule> findByActiveTrue();
     
     List<Rule> findByActive(boolean active);

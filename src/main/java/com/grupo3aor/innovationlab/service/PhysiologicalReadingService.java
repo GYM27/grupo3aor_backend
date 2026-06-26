@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,31 +31,53 @@ public class PhysiologicalReadingService {
     private final RuleEvaluatorService ruleEvaluatorService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @Transactional
+    @Autowired
+    private DegradedModeBufferService bufferService;
+
+    @Autowired
+    private DataPersistenceComponent persistenceComponent;
+
     public PhysiologicalReadingDTO createReading(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found..."));
 
         PhysiologicalReading reading = mapper.toEntity(dto, simulation);
+        
+        // CRÍTICO: Gerar o ID atempadamente na memória para manter a integridade!
+        if (reading.getId() == null) {
+            reading.setId(UUID.randomUUID());
+        }
 
         reading.setCreatedBy(userEmail);
         reading.setUpdatedBy(userEmail);
         reading.setOriginIp(ipAddress);
-        
-        // Save to DB
-        PhysiologicalReading savedReading = repository.save(reading);
-        PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
-        
-        // Push the new reading to the WebSocket topic for this specific simulation
-        messagingTemplate.convertAndSend("/topic/simulations/" + dto.getSimulationId() + "/readings", savedDto);
 
+        PhysiologicalReadingDTO outDto = mapper.toDto(reading);
+
+        // 1. Notificar os clientes PRIMEIRO (Tempo real não é interrompido)
+        messagingTemplate.convertAndSend("/topic/simulations/" + dto.getSimulationId() + "/readings", outDto);
+
+        // 2. Avaliar Regras (Isto também deverá ser adaptado para gerar os Alertas em memória com UUID)
         try {
-            ruleEvaluatorService.evaluateReading(savedReading);
+            ruleEvaluatorService.evaluateReading(reading);
         } catch (Exception e){
-            e.printStackTrace();
+            log.error("Erro na avaliação de regras: ", e);
         }
 
-        return savedDto;
+        // 3. O Circuit Breaker: Tentar gravar na Base de Dados
+        if (bufferService.isDegraded()) {
+            bufferService.addPendingReading(reading);
+        } else {
+            try {
+                persistenceComponent.saveReadingSafely(reading);
+            } catch (Exception e) { // Apanha DataAccessException, falhas de rede, etc.
+                log.warn("[CIRCUIT BREAKER] Falha na Base de Dados! A entrar em Modo Degradado.");
+                bufferService.setDegraded(true);
+                bufferService.addPendingReading(reading);
+            }
+        }
+
+        return outDto;
     }
 
     @org.springframework.scheduling.annotation.Async("telemetryExecutor")
@@ -75,44 +98,55 @@ public class PhysiologicalReadingService {
         }
     }
 
-    @Transactional
+    @Transactional 
     public List<PhysiologicalReadingDTO> createReadingBatch(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
         if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
 
-        // 1. Local cache to avoid hitting the DB for the same simulation multiple times in a single batch
         Map<UUID, Simulation> simulationCache = new HashMap<>();
         List<PhysiologicalReading> entitiesToSave = new ArrayList<>();
 
-        // 2. Prepare all the entities
+        // 1. Preparar Entidades e GERAR OS UUIDs atempadamente
         for (PhysiologicalReadingDTO dto : dtos) {
             Simulation simulation = simulationCache.computeIfAbsent(
                 dto.getSimulationId(), 
-                this::getSimulationOrThrow
+                this::getSimulationOrThrow // Idealmente usar também uma cache para as Simulações
             );
             
             PhysiologicalReading reading = mapper.toEntity(dto, simulation);
+            if(reading.getId() == null) reading.setId(UUID.randomUUID()); // Gerar ID
             reading.setCreatedBy(userEmail);
             reading.setUpdatedBy(userEmail);
             reading.setOriginIp(ipAddress);
-            
             entitiesToSave.add(reading);
         }
 
-        // 3. Evaluate rules locally in an optimized batch BEFORE hitting the database.
-        // This pure RAM computation is extremely fast and ensures alerts are broadcasted
-        // instantly via WebSocket without waiting for the slow DB insert.
+        // 2. Enviar para Websockets e Avaliar Regras (Totalmente independente da BD agora)
+        for (PhysiologicalReading reading : entitiesToSave) {
+            messagingTemplate.convertAndSend("/topic/simulations/" + reading.getSimulation().getId() + "/readings", mapper.toDto(reading));
+        }
+        
+        // Avaliar todas as regras num formato otimizado para não bloquear a BD nem duplicar alertas (Isolamento de Transação)
         try {
-            ruleEvaluatorService.evaluateReadingsBatch(entitiesToSave);
+            ruleEvaluatorService.evaluateReadingsBatch(entitiesToSave); 
         } catch (Exception e) {
-            log.error("Failed to evaluate rules for batch: {}", e.getMessage(), e);
+            log.error("Erro ao avaliar batch de regras: ", e);
         }
 
-        // 4. Save EVERYTHING at once (True Batch Insert)
-        List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
+        // 3. Circuit Breaker para o Batch
+        if (bufferService.isDegraded()) {
+            entitiesToSave.forEach(bufferService::addPendingReading);
+        } else {
+            try {
+                // Necessário criar no DataPersistenceComponent
+                persistenceComponent.saveAllReadingsSafely(entitiesToSave);
+            } catch (Exception e) {
+                log.warn("[CIRCUIT BREAKER BATCH] Falha na Base de Dados! Batch de {} enviado para o buffer.", entitiesToSave.size());
+                bufferService.setDegraded(true);
+                entitiesToSave.forEach(bufferService::addPendingReading);
+            }
+        }
 
-        return savedReadings.stream()
-                .map(mapper::toDto)
-                .toList();
+        return entitiesToSave.stream().map(mapper::toDto).toList();
     }
 
     @Transactional(readOnly = true)

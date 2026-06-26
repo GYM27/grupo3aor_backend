@@ -50,7 +50,7 @@ public class SecurityConfig {
             // CSRF (Cross-Site Request Forgery) protection
             // Enabled using CookieCsrfTokenRepository to allow React to read the token and send it back
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/h2-console/**", "/api/auth/**", "/api/ws/**", "/ws/**", "/actuator/**")
+                .ignoringRequestMatchers("/h2-console/**", "/api/auth/**", "/api/ws/**", "/ws/**", "/actuator/**", "/api/test/**")
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
             )
@@ -68,14 +68,18 @@ public class SecurityConfig {
                 .requestMatchers("/api/ws/**").permitAll()          // I explicitly permitted access to our WebSocket handshake to prevent Spring Security from throwing 500 errors.
                 .requestMatchers("/actuator/health").permitAll()    // Free access to our Health check endpoint for monitoring
                 .requestMatchers("/ws/**").permitAll()              // Free access to WebSockets
+                .requestMatchers("/api/test/**").permitAll()        // Free access to test endpoints for Degraded Mode
 
                 // ALL other URLs not mentioned above will strictly require authentication!
                 .anyRequest().authenticated()
             )
 
-            // Temporarily enable Spring's default login form.
-            // Will be removed later when our React frontend handles the login screen!
-            .formLogin(form -> form.permitAll())
+            // Handle unauthorized requests by returning 401 instead of redirecting to login page
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                })
+            )
 
             // Finally, configure the logout process
             .logout(logout -> logout

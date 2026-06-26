@@ -11,6 +11,7 @@ import lombok.experimental.SuperBuilder;
 import com.grupo3aor.innovationlab.domain.enums.AlertStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.springframework.data.domain.Persistable;
 
 /**
  * Database entity mapped to capture runtime threshold violation alerts.
@@ -27,12 +28,18 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class Alert extends Auditable {
+public class Alert extends Auditable implements Persistable<UUID> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    // 2. Remover @GeneratedValue e usar @Builder.Default para gerar o ID atempadamente
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @Builder.Default
+    private UUID id = UUID.randomUUID();
+
+    // 3. Flag invisível para o Hibernate saber que é um INSERT direto
+    @Transient
+    @Builder.Default
+    private boolean isNewRecord = true;
 
     // I replaced the raw UUID field with a proper @ManyToOne relation to the Simulation entity.
     // This creates a real foreign key in the database, preventing orphan alerts from being created
@@ -63,6 +70,21 @@ public class Alert extends Auditable {
     @Column(name = "timestamp", nullable = false)
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
+
+    // --- MÉTODOS DO PERSISTABLE PARA OTIMIZAR O SPRING DATA JPA ---
+    
+    @Override
+    public boolean isNew() {
+        return this.isNewRecord;
+    }
+
+    @PrePersist
+    @PostLoad
+    void markNotNew() {
+        this.isNewRecord = false;
+    }
+
+    // --------------------------------------------------------------
 
     @Override
     public boolean equals(Object o) {

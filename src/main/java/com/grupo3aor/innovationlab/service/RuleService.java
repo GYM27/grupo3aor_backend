@@ -33,6 +33,7 @@ public class RuleService {
     private final RuleRepository ruleRepository;
     private final UserRepository userRepository;
     private final PhysiologicalSystemRepository systemRepository;
+    private final RuleCacheService ruleCacheService;
 
     /**
      * Creates a new rule, injecting the user securely based on their session email.
@@ -58,6 +59,7 @@ public class RuleService {
                 .build();
 
         Rule saved = ruleRepository.save(rule);
+        ruleCacheService.refreshCache();
         return mapToResponse(saved);
     }
 
@@ -92,6 +94,7 @@ public class RuleService {
             throw new ResourceNotFoundException("Rule not found with ID: " + ruleId);
         }
         ruleRepository.deleteById(ruleId);
+        ruleCacheService.refreshCache();
     }
 
     /**
@@ -103,6 +106,7 @@ public class RuleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
         rule.setActive(false);
         ruleRepository.save(rule);
+        ruleCacheService.refreshCache();
     }
 
     /**
@@ -114,6 +118,7 @@ public class RuleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
         rule.setActive(true);
         ruleRepository.save(rule);
+        ruleCacheService.refreshCache();
     }
 
     /**
@@ -140,6 +145,7 @@ public class RuleService {
         log.info("[AUDIT] Action: RULE_UPDATED | Target ID: {} | Operator: {}", ruleId, userEmail);
 
         Rule saved = ruleRepository.save(rule);
+        ruleCacheService.refreshCache();
         return mapToResponse(saved);
     }
 

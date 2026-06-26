@@ -58,6 +58,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             .id(1L)
             .sessionTimeoutMinutes(30)
             .isHumanBodyEnabled(true)
+            .isDbFailed(false)
             .createdBy("system_seeder")
             .updatedBy("system_seeder")
             .build();

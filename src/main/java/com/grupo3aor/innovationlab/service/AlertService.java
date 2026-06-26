@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class AlertService {
 
@@ -23,6 +26,12 @@ public class AlertService {
     private final SimulationMapper mapper;
     private final SimulationRepository simulationRepository;
     private final RuleRepository ruleRepository;
+
+    @Autowired
+    private DegradedModeBufferService bufferService;
+    
+    @Autowired
+    private DataPersistenceComponent persistenceComponent;
 
     public AlertService(AlertRepository repository, SimulationMapper mapper,
                         SimulationRepository simulationRepository, RuleRepository ruleRepository) {
@@ -32,23 +41,42 @@ public class AlertService {
         this.ruleRepository = ruleRepository;
     }
 
-    @Transactional
+    // Remove o @Transactional deste método se ele estiver a gerir a transação principal,
+    // ou garante que as pesquisas (findById) são feitas antes de tentares guardar.
     public AlertDTO triggerAlert(AlertDTO dto, String userEmail, String ipAddress) {
-        // I resolve the Simulation and Rule entities first to establish proper FK relations.
-        // This replaces the old approach of setting raw UUIDs, which had no referential integrity.
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Simulation not found..."));
 
         Rule rule = ruleRepository.findById(dto.getRuleId())
-                .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + dto.getRuleId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Rule not found..."));
 
         Alert alert = mapper.toEntity(dto, simulation, rule);
+        
+        // Garantir que o ID não é nulo (embora o @Builder.Default na entidade já devesse tratar disto,
+        // é uma boa prática de segurança caso o mapper não use o builder corretamente).
+        if (alert.getId() == null) {
+            alert.setId(UUID.randomUUID());
+        }
 
         alert.setCreatedBy(userEmail);
         alert.setUpdatedBy(userEmail);
         alert.setOriginIp(ipAddress);
 
-        return mapper.toDto(repository.save(alert));
+        // 1. O Circuit Breaker: Tentar gravar na Base de Dados
+        if (bufferService.isDegraded()) {
+            bufferService.addPendingAlert(alert);
+            log.info("[MODO DEGRADADO] Alerta guardado no buffer em memória. ID: {}", alert.getId());
+        } else {
+            try {
+                persistenceComponent.saveAlertSafely(alert);
+            } catch (Exception e) {
+                log.warn("[CIRCUIT BREAKER] Falha na BD ao guardar Alerta! A entrar em Modo Degradado.");
+                bufferService.setDegraded(true);
+                bufferService.addPendingAlert(alert);
+            }
+        }
+
+        return mapper.toDto(alert);
     }
 
     @Transactional

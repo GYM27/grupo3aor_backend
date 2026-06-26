@@ -21,12 +21,15 @@ import lombok.Setter;
 public class GlobalSettings extends Auditable {
 
     @Id
-    private Long id ; // Força a ser sempre o ID 1 na BD
+    private Long id ; // Forces the ID to always be 1 in the database
 
     @Column(name = "session_timeout_minutes")
-    private Integer sessionTimeoutMinutes; // Mapeia o Limite de Inatividade
+    private Integer sessionTimeoutMinutes; // Defines the session inactivity timeout limit
 
     @Column(name = "human_body_enabled")
-    private Boolean isHumanBodyEnabled; // Mapeia a visualização do corpo humano na dashboard
+    private Boolean isHumanBodyEnabled; // Toggles the 3D anatomy model visibility on the dashboard.
 
+    @jakarta.persistence.Transient
+    @lombok.Builder.Default
+    private Boolean isDbFailed = false; // Chaos Engineering flag. It stays strictly in memory to simulate database crashes, avoiding persistent chaos.
 }

@@ -28,6 +28,9 @@ public class RuleEvaluatorService {
     private final AlertRepository alertRepository;
     private final RuleRepository ruleRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RuleCacheService ruleCacheService;
+    private final DegradedModeBufferService bufferService;
+    private final DataPersistenceComponent persistenceComponent;
     
     // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
     private final YAMLMapper yamlMapper = new YAMLMapper();
@@ -45,7 +48,7 @@ public class RuleEvaluatorService {
     @Transactional
     public void evaluateReading(PhysiologicalReading reading) throws Exception {
         
-        for (Rule rule : ruleRepository.findByActiveTrue()) {
+        for (Rule rule : ruleCacheService.getActiveRules()) {
             try {
                 // Check if this rule actually applies to this specific reading handle (e.g. HR vs SpO2)
                 boolean matches = rule.isApplicableTo(reading.getHandle());
@@ -69,9 +72,16 @@ public class RuleEvaluatorService {
 
                     // If the rule triggers, we verify if an active alert already exists to avoid spamming the DB
                     if (diffSeconds >= requiredSeconds) {
-                        boolean alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
-                            reading.getSimulation(), rule, AlertStatus.ATIVO
-                        );
+                        boolean alreadyAlerting = false;
+                        if (!bufferService.isDegraded()) {
+                            try {
+                                alreadyAlerting = alertRepository.existsBySimulationAndRuleAndStatus(
+                                    reading.getSimulation(), rule, AlertStatus.ATIVO
+                                );
+                            } catch (Exception e) {
+                                bufferService.setDegraded(true); // Circuit breaker disparou na leitura
+                            }
+                        }
 
                         if (!alreadyAlerting) {
                                 Alert newAlert = Alert.builder()
@@ -82,14 +92,24 @@ public class RuleEvaluatorService {
                                     .timestamp(reading.getTimestamp())
                                     .build();
                             
-                            alertRepository.save(newAlert);
+                            // Circuit Breaker para Alertas
+                            if (bufferService.isDegraded()) {
+                                bufferService.addPendingAlert(newAlert);
+                            } else {
+                                try {
+                                    persistenceComponent.saveAlertSafely(newAlert);
+                                } catch (Exception e) {
+                                    bufferService.setDegraded(true);
+                                    bufferService.addPendingAlert(newAlert);
+                                }
+                            }
 
                             // Publish to the simulation-specific topic so the Dashboard receives it.
                             // We use a safe Map instead of serializing the JPA entity directly
                             // to avoid LazyInitializationException on LAZY relations.
                             String alertTopic = "/topic/simulations/" + reading.getSimulation().getId() + "/alerts";
                             java.util.Map<String, Object> alertPayload = java.util.Map.of(
-                                "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
+                                "id",             newAlert.getId() != null ? newAlert.getId().toString() : "",
                                 "simulationId",   reading.getSimulation().getId().toString(),
                                 "severity",       rule.getSeverity().name(),
                                 "systemName",     rule.getSystem() != null ? rule.getSystem().getSystemName() : "Unknown",
@@ -122,7 +142,7 @@ public class RuleEvaluatorService {
     public void evaluateReadingsBatch(java.util.List<PhysiologicalReading> readings) {
         if (readings == null || readings.isEmpty()) return;
         
-        java.util.List<Rule> activeRules = ruleRepository.findByActiveTrue();
+        java.util.List<Rule> activeRules = ruleCacheService.getActiveRules();
         if (activeRules.isEmpty()) return;
 
         // In-memory cache to track which rules have already triggered an active alert for the simulation
@@ -133,9 +153,15 @@ public class RuleEvaluatorService {
         com.grupo3aor.innovationlab.domain.entity.Simulation currentSim = readings.get(0).getSimulation();
         // Since we check the DB only once per simulation, this makes 10,000 checks drop to 1.
         for (Rule rule : activeRules) {
-            boolean exists = alertRepository.existsBySimulationAndRuleAndStatus(currentSim, rule, AlertStatus.ATIVO);
-            if (exists) {
-                activeAlertsCache.add(currentSim.getId().toString() + "_" + rule.getId().toString());
+            if (!bufferService.isDegraded()) {
+                try {
+                    boolean exists = alertRepository.existsBySimulationAndRuleAndStatus(currentSim, rule, AlertStatus.ATIVO);
+                    if (exists) {
+                        activeAlertsCache.add(currentSim.getId().toString() + "_" + rule.getId().toString());
+                    }
+                } catch (Exception e) {
+                    bufferService.setDegraded(true);
+                }
             }
         }
 
@@ -172,11 +198,20 @@ public class RuleEvaluatorService {
                                     .build();
                                 
                                 // To eliminate the frontend delay, we save and broadcast the alert IMMEDIATELY!
-                                newAlert = alertRepository.save(newAlert);
+                                if (bufferService.isDegraded()) {
+                                    bufferService.addPendingAlert(newAlert);
+                                } else {
+                                    try {
+                                        newAlert = persistenceComponent.saveAlertSafely(newAlert);
+                                    } catch (Exception e) {
+                                        bufferService.setDegraded(true);
+                                        bufferService.addPendingAlert(newAlert);
+                                    }
+                                }
                                 
                                 String alertTopic = "/topic/simulations/" + currentSim.getId() + "/alerts";
                                 java.util.Map<String, Object> alertPayload = java.util.Map.of(
-                                    "alertId",        newAlert.getId() != null ? newAlert.getId().toString() : "",
+                                    "id",             newAlert.getId() != null ? newAlert.getId().toString() : "",
                                     "simulationId",   currentSim.getId().toString(),
                                     "severity",       newAlert.getRule().getSeverity().name(),
                                     "systemName",     newAlert.getRule().getSystem() != null ? newAlert.getRule().getSystem().getSystemName() : "Unknown",
