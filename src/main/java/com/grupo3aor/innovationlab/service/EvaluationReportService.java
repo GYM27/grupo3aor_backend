@@ -185,8 +185,11 @@ public class EvaluationReportService {
 
                 for (ReportEvent ev : events) {
                     String instante = "N/A";
-                    if (ev.time != null && firstReading != null && firstReading.getTimestamp() != null) {
-                        long diffSecs = Duration.between(firstReading.getTimestamp(), ev.time).getSeconds();
+                    LocalDateTime startBase = (firstReading != null && firstReading.getTimestamp() != null) 
+                            ? firstReading.getTimestamp() 
+                            : (simulation.getStartedAt() != null ? simulation.getStartedAt() : null);
+                    if (ev.time != null && startBase != null) {
+                        long diffSecs = Duration.between(startBase, ev.time).getSeconds();
                         diffSecs = Math.max(0, diffSecs);
                         instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
                     } else if (ev.time != null) {
