@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.grupo3aor.innovationlab.dto.AlertDTO;
 import com.grupo3aor.innovationlab.dto.MetricDTO;
 import com.grupo3aor.innovationlab.dto.PhysiologicalReadingDTO;
 import com.grupo3aor.innovationlab.domain.entity.Simulation;
@@ -201,7 +201,7 @@ public class SimulationEngineService {
         metricsCache.remove(sim.getId());
         
         try {
-            com.grupo3aor.innovationlab.dto.AlertDTO finishAlert = new com.grupo3aor.innovationlab.dto.AlertDTO();
+            AlertDTO finishAlert = new AlertDTO();
             finishAlert.setTimestamp(LocalDateTime.now());
             finishAlert.setSeverity("INFO");
             finishAlert.setSystemName("[SYSTEM_END_SIMULATION]");
