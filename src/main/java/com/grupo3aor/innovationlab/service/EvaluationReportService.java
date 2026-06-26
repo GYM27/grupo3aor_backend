@@ -28,6 +28,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Collections;
 
 @Service
 public class EvaluationReportService {
@@ -93,16 +95,16 @@ public class EvaluationReportService {
             // Computar Intervalo Temporal Real
             PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulation.getId());
             PhysiologicalReading lastReading = readingRepository.findFirstBySimulation_IdOrderByTimestampDesc(simulation.getId());
-            String intervaloStr = report.getIntervaloTemporal();
+            String intervaloStr = report.getIntervaloTemporal() != null ? report.getIntervaloTemporal() : "N/A";
             LocalDateTime startBaseTime = simulation.getStartedAt() != null ? simulation.getStartedAt() : LocalDateTime.now();
 
-            if (firstReading != null) {
+            if (firstReading != null && firstReading.getTimestamp() != null) {
                 startBaseTime = firstReading.getTimestamp();
             }
 
             document.add(new Paragraph("Data: " + startBaseTime.format(formatter), textFont));
 
-            if (firstReading != null && lastReading != null) {
+            if (firstReading != null && firstReading.getTimestamp() != null && lastReading != null && lastReading.getTimestamp() != null) {
                 LocalDateTime first = firstReading.getTimestamp();
                 LocalDateTime last = lastReading.getTimestamp();
                 long seconds = Duration.between(first, last).getSeconds();
@@ -115,7 +117,7 @@ public class EvaluationReportService {
             document.add(new Paragraph("\n"));
             
             document.add(new Paragraph("Resumo e Justificacao Analitica", subtitleFont));
-            document.add(new Paragraph(report.getRationaleText(), textFont));
+            document.add(new Paragraph(report.getRationaleText() != null ? report.getRationaleText() : "N/A", textFont));
             document.add(new Paragraph("\n"));
 
             // 1. Tabela de Alertas (Registo de Eventos)
@@ -136,22 +138,66 @@ public class EvaluationReportService {
                 alertTable.addCell(new Phrase("Alerta", boldFont));
                 alertTable.addCell(new Phrase("Rationale Analítico", boldFont));
                 
-                for (Alert a : alerts) {
-                    String instante = "N/A";
-                    if (a.getTimestamp() != null && firstReading != null) {
-                        long diffSecs = Duration.between(firstReading.getTimestamp(), a.getTimestamp()).getSeconds();
-                        // If diff is negative (e.g. edge cases), default to 0
-                        diffSecs = Math.max(0, diffSecs);
-                        instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
-                    } else if (a.getTimestamp() != null) {
-                        instante = a.getTimestamp().format(timeFormatter);
+                // Helper class to sort events chronologically
+                class ReportEvent implements Comparable<ReportEvent> {
+                    LocalDateTime time;
+                    String systemName;
+                    String ruleName;
+                    String severity;
+                    String rationale;
+
+                    ReportEvent(LocalDateTime time, String systemName, String ruleName, String severity, String rationale) {
+                        this.time = time;
+                        this.systemName = systemName;
+                        this.ruleName = ruleName;
+                        this.severity = severity;
+                        this.rationale = rationale;
                     }
 
-                    alertTable.addCell(new Phrase(instante, textFont));
-                    alertTable.addCell(new Phrase(a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A", textFont));
-                    alertTable.addCell(new Phrase(a.getRule() != null ? a.getRule().getName() : "N/A", textFont));
-                    alertTable.addCell(new Phrase(a.getRule() != null ? a.getRule().getSeverity().name() : "N/A", textFont));
-                    alertTable.addCell(new Phrase(generateAnalyticalRationale(a), textFont));
+                    @Override
+                    public int compareTo(ReportEvent o) {
+                        if (this.time == null && o.time == null) return 0;
+                        if (this.time == null) return -1;
+                        if (o.time == null) return 1;
+                        return this.time.compareTo(o.time);
+                    }
+                }
+
+                List<ReportEvent> events = new ArrayList<>();
+                for (Alert a : alerts) {
+                    String sysName = a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A";
+                    String rName = a.getRule() != null ? a.getRule().getName() : "N/A";
+                    String triggerSev = a.getRule() != null ? a.getRule().getSeverity().name() : "N/A";
+                    String justif = generateAnalyticalRationale(a, false);
+
+                    if (a.getTimestamp() != null) {
+                        events.add(new ReportEvent(a.getTimestamp(), sysName, rName, triggerSev, justif));
+                    }
+                    if (a.getWarningAt() != null) {
+                        events.add(new ReportEvent(a.getWarningAt(), sysName, rName, "AVISO (Melhoria)", "Os sinais vitais começam a regressar à zona de segurança."));
+                    }
+                    if (a.getResolvedAt() != null) {
+                        events.add(new ReportEvent(a.getResolvedAt(), sysName, rName + " (Estabilizado)", "NORMAL", "Paciente estabilizado. Valores normalizados."));
+                    }
+                }
+                
+                Collections.sort(events);
+
+                for (ReportEvent ev : events) {
+                    String instante = "N/A";
+                    if (ev.time != null && firstReading != null && firstReading.getTimestamp() != null) {
+                        long diffSecs = Duration.between(firstReading.getTimestamp(), ev.time).getSeconds();
+                        diffSecs = Math.max(0, diffSecs);
+                        instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
+                    } else if (ev.time != null) {
+                        instante = ev.time.format(timeFormatter);
+                    }
+
+                    alertTable.addCell(new Phrase(instante != null ? instante : "N/A", textFont));
+                    alertTable.addCell(new Phrase(ev.systemName != null ? ev.systemName : "N/A", textFont));
+                    alertTable.addCell(new Phrase(ev.ruleName != null ? ev.ruleName : "N/A", textFont));
+                    alertTable.addCell(new Phrase(ev.severity != null ? ev.severity : "N/A", textFont));
+                    alertTable.addCell(new Phrase(ev.rationale != null ? ev.rationale : "N/A", textFont));
                 }
                 document.add(alertTable);
             }
@@ -164,8 +210,14 @@ public class EvaluationReportService {
         }
     }
 
-    private String generateAnalyticalRationale(Alert alert) {
-        if (alert.getRule() == null || alert.getRule().getExpressionDsl() == null) {
+    private String generateAnalyticalRationale(Alert alert, boolean isResolved) {
+        if (alert.getRule() == null) {
+            return "Ativação baseada nas regras configuradas.";
+        }
+        if (alert.getRule().getAnalyticalJustification() != null && !alert.getRule().getAnalyticalJustification().trim().isEmpty()) {
+            return alert.getRule().getAnalyticalJustification();
+        }
+        if (alert.getRule().getExpressionDsl() == null) {
             return "Ativação baseada nas regras configuradas.";
         }
         try {

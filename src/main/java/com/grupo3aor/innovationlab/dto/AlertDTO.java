@@ -28,6 +28,9 @@ public class AlertDTO {
 
     private String severity;
     private String systemName;
+    private String ruleName;
+    private String analyticalJustification;
+    private String formattedValue;
 
     @NotNull(message = "The reading value recorded at trigger time is required")
     private Double valueAtTrigger;

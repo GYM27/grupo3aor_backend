@@ -171,15 +171,29 @@ public class RuleEvaluatorService {
     private void broadcastAlert(Alert alert, String overrideSeverity) {
         if (alert == null || alert.getSimulation() == null) return;
         String alertTopic = "/topic/simulations/" + alert.getSimulation().getId() + "/alerts";
+        
+        String ruleName = alert.getRule() != null ? alert.getRule().getName() : "";
+        String analyticalJustification = alert.getRule() != null ? alert.getRule().getAnalyticalJustification() : "";
+        String formattedValue = com.grupo3aor.innovationlab.util.ClinicalFormatter.formatClinicalMessage(alert);
+        
+        String eventTimestamp = alert.getTimestamp() != null ? alert.getTimestamp().toString() : "";
+        if ("NORMAL".equals(overrideSeverity) && alert.getResolvedAt() != null) {
+            eventTimestamp = alert.getResolvedAt().toString();
+        } else if ("WARNING".equals(overrideSeverity) && alert.getWarningAt() != null) {
+            eventTimestamp = alert.getWarningAt().toString();
+        }
+
         java.util.Map<String, Object> alertPayload = java.util.Map.of(
             "alertId",        alert.getId() != null ? alert.getId().toString() : "",
             "ruleId",         alert.getRule() != null ? alert.getRule().getId().toString() : "",
             "simulationId",   alert.getSimulation().getId().toString(),
             "severity",       overrideSeverity,
             "systemName",     alert.getRule().getSystem() != null ? alert.getRule().getSystem().getSystemName() : "Unknown",
+            "ruleName",       ruleName,
+            "analyticalJustification", analyticalJustification != null ? analyticalJustification : "",
+            "formattedValue", formattedValue,
             "valueAtTrigger", alert.getValueAtTrigger() != null ? alert.getValueAtTrigger() : "",
-            "timestamp",      alert.getTimestamp() != null ? alert.getTimestamp().toString() : "",
-            "expressionDsl",  alert.getRule().getExpressionDsl() != null ? alert.getRule().getExpressionDsl() : ""
+            "timestamp",      eventTimestamp
         );
         messagingTemplate.convertAndSend(alertTopic, alertPayload);
     }

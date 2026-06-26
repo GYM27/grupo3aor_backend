@@ -63,6 +63,9 @@ public class Rule extends Auditable {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Severity severity;
+    
+    @Column(name = "analytical_justification", columnDefinition = "TEXT")
+    private String analyticalJustification;
 
     // =========================================================
     // THE PHYSIOLOGICAL SYSTEM
