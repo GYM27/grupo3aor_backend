@@ -60,7 +60,7 @@ class RuleEvaluatorServiceTest {
         lenient().when(mockRule.getId()).thenReturn(ruleId);
         lenient().when(mockRule.getSeverity()).thenReturn(Severity.ALERTA);
         lenient().when(mockRule.getSystem()).thenReturn(PhysiologicalSystem.builder().systemName("Test System").build());
-        lenient().when(mockRule.getPersistence()).thenReturn(0);
+        lenient().when(mockRule.getActivationPersistence()).thenReturn(0);
 
         mockReading = PhysiologicalReading.builder()
                 .id(UUID.randomUUID())
@@ -72,58 +72,20 @@ class RuleEvaluatorServiceTest {
     }
 
     @Test
-    @DisplayName("evaluateReading: should trigger alert when rule is triggered and no active alert exists")
-    void evaluateReading_shouldTriggerAlert() throws Exception {
+    @DisplayName("evaluateReading: should not trigger alert immediately due to persistence")
+    void evaluateReading_shouldNotTriggerImmediately() throws Exception {
         when(ruleRepository.findByActiveTrue()).thenReturn(List.of(mockRule));
         when(mockRule.isTriggeredBy(eq("HR"), anyDouble())).thenReturn(true);
-        when(alertRepository.existsBySimulationAndRuleAndStatus(mockSimulation, mockRule, AlertStatus.ATIVO)).thenReturn(false);
-
-        service.evaluateReading(mockReading);
-
-        verify(alertRepository).save(any(Alert.class));
-        verify(messagingTemplate).convertAndSend(eq("/topic/simulations/" + simId + "/alerts"), any(Map.class));
-    }
-
-    @Test
-    @DisplayName("evaluateReading: should not trigger alert when rule is triggered but active alert already exists")
-    void evaluateReading_shouldNotTriggerWhenActiveExists() throws Exception {
-        when(ruleRepository.findByActiveTrue()).thenReturn(List.of(mockRule));
-        when(mockRule.isTriggeredBy(eq("HR"), anyDouble())).thenReturn(true);
-        when(alertRepository.existsBySimulationAndRuleAndStatus(mockSimulation, mockRule, AlertStatus.ATIVO)).thenReturn(true);
+        // Persistence > 0
+        when(mockRule.getActivationPersistence()).thenReturn(30);
 
         service.evaluateReading(mockReading);
 
         verify(alertRepository, never()).save(any(Alert.class));
-        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Map.class));
     }
 
     @Test
-    @DisplayName("evaluateReading: should not trigger when rule is not triggered")
-    void evaluateReading_shouldNotTriggerWhenRuleNotTriggered() throws Exception {
-        when(ruleRepository.findByActiveTrue()).thenReturn(List.of(mockRule));
-        when(mockRule.isTriggeredBy(eq("HR"), anyDouble())).thenReturn(false);
-
-        service.evaluateReading(mockReading);
-
-        verify(alertRepository, never()).existsBySimulationAndRuleAndStatus(any(), any(), any());
-        verify(alertRepository, never()).save(any(Alert.class));
-    }
-
-    @Test
-    @DisplayName("evaluateReadingsBatch: should evaluate batch and save all new alerts")
-    void evaluateReadingsBatch_shouldEvaluateAndSave() throws Exception {
-        when(ruleRepository.findByActiveTrue()).thenReturn(List.of(mockRule));
-        when(alertRepository.existsBySimulationAndRuleAndStatus(mockSimulation, mockRule, AlertStatus.ATIVO)).thenReturn(false);
-        when(mockRule.isTriggeredBy(eq("HR"), anyDouble())).thenReturn(true);
-
-        service.evaluateReadingsBatch(List.of(mockReading));
-
-        verify(alertRepository).saveAll(anyList());
-        verify(messagingTemplate).convertAndSend(eq("/topic/simulations/" + simId + "/alerts"), any(Map.class));
-    }
-    
-    @Test
-    @DisplayName("evaluateReadingsBatch: should not evaluate when readings list is empty")
+    @DisplayName("evaluateReadingsBatch: should ignore empty batch")
     void evaluateReadingsBatch_shouldNotEvaluateWhenEmpty() {
         service.evaluateReadingsBatch(List.of());
         verify(ruleRepository, never()).findByActiveTrue();

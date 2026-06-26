@@ -68,6 +68,49 @@ public class DatabaseSeeder implements CommandLineRunner {
     }
 
     private void seedRules() {
+        // OVERRIDE: Update existing rules in the DB that don't have hysteresis yet (from older runs)
+        List<com.grupo3aor.innovationlab.domain.entity.Rule> allRules = ruleRepository.findAll();
+        boolean updatedAny = false;
+        for (com.grupo3aor.innovationlab.domain.entity.Rule r : allRules) {
+            String dsl = r.getExpressionDsl();
+            
+            // Força a atualização da Taquicardia para testar o Alerta Crítico que resolve
+            if (r.getName() != null && r.getName().contains("Taquicardia") && (!dsl.contains("110") || r.getSeverity() != com.grupo3aor.innovationlab.domain.enums.Severity.CRITICO)) {
+                r.setName("Taquicardia (HR > 105)");
+                r.setExpressionDsl("{\"metric\": \"HEART_RATE\", \"operator\": \">\", " +
+                        "\"activationThreshold\": 105, \"activationPersistence\": 0, " +
+                        "\"resolutionThreshold\": 95, \"resolutionPersistence\": 0}");
+                r.setSeverity(com.grupo3aor.innovationlab.domain.enums.Severity.CRITICO);
+                updatedAny = true;
+            } else if (dsl != null && !dsl.contains("resolutionThreshold")) {
+                if (r.getName() != null && r.getName().contains("Taquipneia")) {
+                    r.setExpressionDsl("{\"metric\": \"RR\", \"operator\": \">\", " +
+                            "\"activationThreshold\": 30, \"activationPersistence\": 20, " +
+                            "\"resolutionThreshold\": 25, \"resolutionPersistence\": 20}");
+                    updatedAny = true;
+                } else if (r.getName() != null && r.getName().contains("Hipoxia")) {
+                    r.setExpressionDsl("{\"metric\": \"SPO2\", \"operator\": \"<\", " +
+                            "\"activationThreshold\": 97, \"activationPersistence\": 40, " +
+                            "\"resolutionThreshold\": 98, \"resolutionPersistence\": 40}");
+                    updatedAny = true;
+                } else if (r.getName() != null && r.getName().contains("Volume Corrente")) {
+                    r.setExpressionDsl("{\"metric\": \"TidalVolume\", \"operator\": \"<\", " +
+                            "\"activationThreshold\": 200, \"activationPersistence\": 15, " +
+                            "\"resolutionThreshold\": 250, \"resolutionPersistence\": 15}");
+                    updatedAny = true;
+                } else if (r.getName() != null && r.getName().contains("Acidose")) {
+                    r.setExpressionDsl("{\"metric\": \"ArterialBloodPH\", \"operator\": \"<\", " +
+                            "\"activationThreshold\": 7.35, \"activationPersistence\": 60, " +
+                            "\"resolutionThreshold\": 7.38, \"resolutionPersistence\": 60}");
+                    updatedAny = true;
+                }
+            }
+        }
+        if (updatedAny) {
+            ruleRepository.saveAll(allRules);
+            System.out.println("[SEEDER] Atualizadas Regras Clínicas antigas com os parâmetros de Histerese!");
+        }
+
         if (ruleRepository.count() == 0) {
             System.out.println("[SEEDER] Inserindo Regras Clínicas iniciais para Asma...");
             
@@ -84,37 +127,47 @@ public class DatabaseSeeder implements CommandLineRunner {
             if (cardio != null && resp != null) {
                 // 1. Taquicardia
                 com.grupo3aor.innovationlab.domain.entity.Rule hrRule = com.grupo3aor.innovationlab.domain.entity.Rule.builder()
-                    .name("Taquicardia (HR > 95)")
-                    .expressionDsl("{\"metric\": \"HEART_RATE\", \"operator\": \">\", \"threshold\": 95, \"persistence\": 30}")
-                    .severity(com.grupo3aor.innovationlab.domain.enums.Severity.ALERTA)
+                    .name("Taquicardia Severa")
+                    .expressionDsl("{\"metric\": \"HEART_RATE\", \"operator\": \">\", \"activationThreshold\": 105, " +
+                                   "\"activationPersistence\": 0, \"resolutionThreshold\": 95, \"resolutionPersistence\": 0}")
+                    .severity(com.grupo3aor.innovationlab.domain.enums.Severity.CRITICO)
+                    .analyticalJustification("Aumento sustentado da frequência cardíaca indica possível choque compensado ou stress fisiológico agudo.")
                     .system(cardio).active(true).deleted(false).createdBy("system_seeder").updatedBy("system_seeder").build();
                 
                 // 2. Taquipneia
                 com.grupo3aor.innovationlab.domain.entity.Rule rrRule = com.grupo3aor.innovationlab.domain.entity.Rule.builder()
-                    .name("Taquipneia Severa (RR > 30)")
-                    .expressionDsl("{\"metric\": \"RR\", \"operator\": \">\", \"threshold\": 30, \"persistence\": 20}")
+                    .name("Taquipneia")
+                    .expressionDsl("{\"metric\": \"RR\", \"operator\": \">\", \"activationThreshold\": 30, " +
+                                   "\"activationPersistence\": 20, \"resolutionThreshold\": 25, \"resolutionPersistence\": 20}")
                     .severity(com.grupo3aor.innovationlab.domain.enums.Severity.CRITICO)
+                    .analyticalJustification("Frequência respiratória elevada sugere dificuldade respiratória iminente ou acidose metabólica compensatória.")
                     .system(resp).active(true).deleted(false).createdBy("system_seeder").updatedBy("system_seeder").build();
 
                 // 3. Hipoxia
                 com.grupo3aor.innovationlab.domain.entity.Rule spo2Rule = com.grupo3aor.innovationlab.domain.entity.Rule.builder()
-                    .name("Hipoxia (SpO2 < 97%)")
-                    .expressionDsl("{\"metric\": \"SPO2\", \"operator\": \"<\", \"threshold\": 97, \"persistence\": 40}")
+                    .name("Hipoxia Crítica")
+                    .expressionDsl("{\"metric\": \"SPO2\", \"operator\": \"<\", \"activationThreshold\": 97, " +
+                                   "\"activationPersistence\": 40, \"resolutionThreshold\": 98, \"resolutionPersistence\": 40}")
                     .severity(com.grupo3aor.innovationlab.domain.enums.Severity.ALERTA)
+                    .analyticalJustification("A queda de saturação de oxigénio reflete trocas gasosas inadequadas a nível alveolar.")
                     .system(resp).active(true).deleted(false).createdBy("system_seeder").updatedBy("system_seeder").build();
 
                 // 4. Volume Corrente Baixo (Broncoconstrição)
                 com.grupo3aor.innovationlab.domain.entity.Rule tidalRule = com.grupo3aor.innovationlab.domain.entity.Rule.builder()
-                    .name("Volume Corrente Baixo (< 200mL)")
-                    .expressionDsl("{\"metric\": \"TidalVolume\", \"operator\": \"<\", \"threshold\": 200, \"persistence\": 15}")
+                    .name("Broncoconstrição / Hipoventilação")
+                    .expressionDsl("{\"metric\": \"TidalVolume\", \"operator\": \"<\", \"activationThreshold\": 200, " +
+                                   "\"activationPersistence\": 15, \"resolutionThreshold\": 250, \"resolutionPersistence\": 15}")
                     .severity(com.grupo3aor.innovationlab.domain.enums.Severity.ALERTA)
+                    .analyticalJustification("Volume corrente abaixo do limiar aponta para obstrução das vias aéreas inferiores ou fraqueza muscular.")
                     .system(resp).active(true).deleted(false).createdBy("system_seeder").updatedBy("system_seeder").build();
 
                 // 5. Acidose Respiratória
                 com.grupo3aor.innovationlab.domain.entity.Rule phRule = com.grupo3aor.innovationlab.domain.entity.Rule.builder()
-                    .name("Acidose Respiratória (pH < 7.35)")
-                    .expressionDsl("{\"metric\": \"ArterialBloodPH\", \"operator\": \"<\", \"threshold\": 7.35, \"persistence\": 60}")
+                    .name("Acidose Respiratória")
+                    .expressionDsl("{\"metric\": \"ArterialBloodPH\", \"operator\": \"<\", \"activationThreshold\": 7.35, " +
+                                   "\"activationPersistence\": 60, \"resolutionThreshold\": 7.38, \"resolutionPersistence\": 60}")
                     .severity(com.grupo3aor.innovationlab.domain.enums.Severity.CRITICO)
+                    .analyticalJustification("Acumulação de CO2 no sangue devido a ventilação alveolar inadequada.")
                     .system(resp).active(true).deleted(false).createdBy("system_seeder").updatedBy("system_seeder").build();
 
                 ruleRepository.saveAll(java.util.List.of(hrRule, rrRule, spo2Rule, tidalRule, phRule));

@@ -64,6 +64,12 @@ public class Alert extends Auditable {
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
 
+    @Column(name = "warning_at")
+    private LocalDateTime warningAt;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

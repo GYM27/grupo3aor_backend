@@ -54,6 +54,7 @@ public class RuleService {
                 .system(system)
                 .expressionDsl(request.getExpressionDsl())
                 .severity(request.getSeverity())
+                .analyticalJustification(request.getAnalyticalJustification())
                 .createdByUser(creator)
                 .build();
 
@@ -134,6 +135,7 @@ public class RuleService {
         rule.setName(request.getName());
         rule.setExpressionDsl(request.getExpressionDsl());
         rule.setSeverity(request.getSeverity());
+        rule.setAnalyticalJustification(request.getAnalyticalJustification());
         // Fix: populate the audit field that was being silently ignored
         rule.setUpdatedBy(userEmail);
 
@@ -152,7 +154,7 @@ public class RuleService {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.grupo3aor.innovationlab.dto.RuleCondition condition = mapper.readValue(expressionDsl, com.grupo3aor.innovationlab.dto.RuleCondition.class);
             if ("BP".equalsIgnoreCase(condition.getMetric()) || "Pressão Arterial".equalsIgnoreCase(condition.getMetric())) {
-                if (condition.getThreshold() < 0 || condition.getThreshold() > 300) {
+                if (condition.getActivationThreshold() != null && (condition.getActivationThreshold() < 0 || condition.getActivationThreshold() > 300)) {
                     throw new IllegalArgumentException("O valor limite para a Pressão Arterial deve estar entre 0 e 300 mmHg.");
                 }
             }
@@ -168,6 +170,7 @@ public class RuleService {
                 .systemId(rule.getSystem() != null ? rule.getSystem().getId() : null)
                 .expressionDsl(rule.getExpressionDsl())
                 .severity(rule.getSeverity())
+                .analyticalJustification(rule.getAnalyticalJustification())
                 .createdByUserEmail(rule.getCreatedByUser() != null ? rule.getCreatedByUser().getEmail() : "Unknown")
                 .createdAt(rule.getCreatedAt())
                 .active(rule.isActive())

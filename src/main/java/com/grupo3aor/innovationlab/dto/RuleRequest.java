@@ -34,5 +34,7 @@ public class RuleRequest {
 
     @NotNull(message = "Severity must be provided (ALERTA or CRITICO)")
     private Severity severity;
+    
+    private String analyticalJustification;
 
 }

@@ -64,6 +64,9 @@ public class SimulationMapper {
         dto.setValueAtTrigger(entity.getValueAtTrigger());
         if (entity.getRule() != null) {
             dto.setSeverity(entity.getRule().getSeverity().name());
+            dto.setRuleName(entity.getRule().getName());
+            dto.setAnalyticalJustification(entity.getRule().getAnalyticalJustification());
+            dto.setFormattedValue(com.grupo3aor.innovationlab.util.ClinicalFormatter.formatClinicalMessage(entity));
             if (entity.getRule().getSystem() != null) {
                 dto.setSystemName(entity.getRule().getSystem().getSystemName());
             }

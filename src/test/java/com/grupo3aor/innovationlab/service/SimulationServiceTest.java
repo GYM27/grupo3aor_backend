@@ -53,6 +53,12 @@ class SimulationServiceTest {
     @Mock
     private SimulationEngineService simulationEngineService;
 
+    @Mock
+    private com.grupo3aor.innovationlab.repository.AlertRepository alertRepository;
+
+    @Mock
+    private RuleEvaluatorService ruleEvaluatorService;
+
     @InjectMocks
     private SimulationService simulationService;
 

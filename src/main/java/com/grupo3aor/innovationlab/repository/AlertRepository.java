@@ -30,6 +30,9 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
     // I added this query to prevent alert spam. It checks if there's already an active alert for the same simulation and rule.
     boolean existsBySimulationAndRuleAndStatus(Simulation simulation, Rule rule, AlertStatus status);
     
+    // I added this query to fetch the actual active alert so we can update its warningAt and resolvedAt timestamps.
+    Alert findFirstBySimulationAndRuleAndStatusOrderByTimestampDesc(Simulation simulation, Rule rule, AlertStatus status);
+    
     /**
      * Bulk deletes alerts that occur after a specific timestamp.
      * Uses @Modifying and @Query to prevent N+1 select/delete problems.

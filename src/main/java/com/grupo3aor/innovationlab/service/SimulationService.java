@@ -34,6 +34,7 @@ public class SimulationService {
     private final UserRepository userRepository;
     private final ClinicalScenarioRepository scenarioRepository;
     private final SimulationEngineService simulationEngineService;
+    private final RuleEvaluatorService ruleEvaluatorService;
     private final com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository readingRepository;
     private final com.grupo3aor.innovationlab.repository.AlertRepository alertRepository;
 
@@ -94,6 +95,7 @@ public class SimulationService {
         
         // Let the engine know that one less simulation is active
         simulationEngineService.decrementActiveSimulations();
+        ruleEvaluatorService.clearSimulationState(simulationId);
         
         return mapToResponse(saved);
     }
@@ -127,6 +129,7 @@ public class SimulationService {
         
         // Letting the engine know we just canceled one
         simulationEngineService.decrementActiveSimulations();
+        ruleEvaluatorService.clearSimulationState(simulationId);
         
         return mapToResponse(saved);
     }

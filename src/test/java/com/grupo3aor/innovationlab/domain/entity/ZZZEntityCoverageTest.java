@@ -134,23 +134,31 @@ class ZZZEntityCoverageTest {
     }
 
     @Test
-    @DisplayName("Rule getPersistence logic")
-    void testRuleGetPersistence() {
+    @DisplayName("Rule getActivationPersistence logic")
+    void testRuleGetActivationPersistence() {
         Rule rule = new Rule();
         
         // Empty DSL
-        assertThat(rule.getPersistence()).isEqualTo(0);
+        assertThat(rule.getActivationPersistence()).isEqualTo(0);
         
         // Invalid DSL
         rule.setExpressionDsl("invalid-dsl");
-        assertThat(rule.getPersistence()).isEqualTo(0);
+        assertThat(rule.getActivationPersistence()).isEqualTo(0);
         
-        // Valid DSL with persistence
-        rule.setExpressionDsl("{\"metric\":\"HEART_RATE\",\"operator\":\">\",\"threshold\":100.0,\"persistence\":5}");
-        assertThat(rule.getPersistence()).isEqualTo(5);
-        
-        // Cached persistence
-        assertThat(rule.getPersistence()).isEqualTo(5);
+        // Valid DSL with activation persistence
+        rule.setExpressionDsl("{\"metric\":\"HEART_RATE\",\"operator\":\">\",\"activationThreshold\":100,\"activationPersistence\":30}");
+        assertThat(rule.getActivationPersistence()).isEqualTo(30);
+
+        // No persistence mapped should return 0 safely
+        rule.setExpressionDsl("{\"metric\":\"HEART_RATE\",\"operator\":\">\",\"activationThreshold\":100}");
+        assertThat(rule.getActivationPersistence()).isEqualTo(0);
+
+        rule.setExpressionDsl("invalid-json");
+        // Invalid JSON should return 0 safely
+        assertThat(rule.getActivationPersistence()).isEqualTo(0);
+
+        rule.setExpressionDsl(null);
+        assertThat(rule.getActivationPersistence()).isEqualTo(0);
     }
     
     @Test

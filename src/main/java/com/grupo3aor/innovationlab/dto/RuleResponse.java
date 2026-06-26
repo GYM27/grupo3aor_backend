@@ -35,6 +35,8 @@ public class RuleResponse {
     private Severity severity;
     
     private String createdByUserEmail;
+
+    private String analyticalJustification;
     
     private LocalDateTime createdAt;
     
