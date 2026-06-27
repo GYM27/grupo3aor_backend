@@ -128,7 +128,7 @@ public class Rule extends Auditable {
             } else if ("BP".equalsIgnoreCase(metric)) {
                 return "ArterialPressure_Systolic".equalsIgnoreCase(handle) || "SystolicArterialPressure".equalsIgnoreCase(handle) || "SBP".equalsIgnoreCase(handle);
             } else if ("RR".equalsIgnoreCase(metric)) {
-                return "RespirationRate".equalsIgnoreCase(handle);
+                return "RespirationRate".equalsIgnoreCase(handle) || "RR".equalsIgnoreCase(handle);
             } else if ("TEMP".equalsIgnoreCase(metric) || "TEMPERATURE".equalsIgnoreCase(metric)) {
                 return "CoreTemperature".equalsIgnoreCase(handle) || "TEMP".equalsIgnoreCase(handle);
             } else {
@@ -156,7 +156,7 @@ public class Rule extends Auditable {
             } else if ("BP".equalsIgnoreCase(metric)) {
                 matches = "ArterialPressure_Systolic".equalsIgnoreCase(handle) || "SystolicArterialPressure".equalsIgnoreCase(handle) || "SBP".equalsIgnoreCase(handle);
             } else if ("RR".equalsIgnoreCase(metric)) {
-                matches = "RespirationRate".equalsIgnoreCase(handle);
+                matches = "RespirationRate".equalsIgnoreCase(handle) || "RR".equalsIgnoreCase(handle);
             } else if ("TEMP".equalsIgnoreCase(metric) || "TEMPERATURE".equalsIgnoreCase(metric)) {
                 matches = "CoreTemperature".equalsIgnoreCase(handle) || "TEMP".equalsIgnoreCase(handle);
             } else {
@@ -195,7 +195,7 @@ public class Rule extends Auditable {
             } else if ("BP".equalsIgnoreCase(metric)) {
                 matches = "ArterialPressure_Systolic".equalsIgnoreCase(handle) || "SystolicArterialPressure".equalsIgnoreCase(handle) || "SBP".equalsIgnoreCase(handle);
             } else if ("RR".equalsIgnoreCase(metric)) {
-                matches = "RespirationRate".equalsIgnoreCase(handle);
+                matches = "RespirationRate".equalsIgnoreCase(handle) || "RR".equalsIgnoreCase(handle);
             } else if ("TEMP".equalsIgnoreCase(metric) || "TEMPERATURE".equalsIgnoreCase(metric)) {
                 matches = "CoreTemperature".equalsIgnoreCase(handle) || "TEMP".equalsIgnoreCase(handle);
             } else {

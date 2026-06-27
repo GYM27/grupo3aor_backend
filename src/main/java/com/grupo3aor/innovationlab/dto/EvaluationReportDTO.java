@@ -22,6 +22,10 @@ public class EvaluationReportDTO {
 
     private byte[] pdfContent;
 
+    // Optional: when provided, the PDF will only include alerts up to this cutoff time
+    // This allows PDF generation to proceed independently of the slow bulkDelete in stopSimulation
+    private Double cutOffSeconds;
+
     public EvaluationReportDTO() {
     }
 
@@ -45,4 +49,8 @@ public class EvaluationReportDTO {
     public byte[] getPdfContent() { return pdfContent; }
 
     public void setPdfContent(byte[] pdfContent) { this.pdfContent = pdfContent; }
+
+    public Double getCutOffSeconds() { return cutOffSeconds; }
+
+    public void setCutOffSeconds(Double cutOffSeconds) { this.cutOffSeconds = cutOffSeconds; }
 }

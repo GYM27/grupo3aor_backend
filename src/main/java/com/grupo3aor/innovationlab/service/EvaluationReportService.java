@@ -9,18 +9,22 @@ import com.grupo3aor.innovationlab.repository.EvaluationReportRepository;
 import com.grupo3aor.innovationlab.repository.SimulationRepository;
 import com.grupo3aor.innovationlab.domain.entity.Alert;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
-import com.grupo3aor.innovationlab.dto.RuleCondition;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.grupo3aor.innovationlab.domain.entity.Rule;
+import com.grupo3aor.innovationlab.domain.entity.PhysiologicalSystem;
+import com.grupo3aor.innovationlab.domain.enums.Severity;
 import com.lowagie.text.Document;
 import com.lowagie.text.Font;
 import com.lowagie.text.FontFactory;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import java.awt.Color;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Duration;
@@ -30,37 +34,46 @@ import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import com.grupo3aor.innovationlab.repository.AlertRepository;
+import com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository;
+import com.grupo3aor.innovationlab.repository.RuleRepository;
+
+@Slf4j
 @Service
 public class EvaluationReportService {
 
     private final EvaluationReportRepository repository;
     private final SimulationMapper mapper;
     private final SimulationRepository simulationRepository;
-    private final com.grupo3aor.innovationlab.repository.AlertRepository alertRepository;
-    private final com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository readingRepository;
+    private final AlertRepository alertRepository;
+    private final PhysiologicalReadingRepository readingRepository;
+    private final ClinicalFormatter clinicalFormatter;
+    private final RuleRepository ruleRepository;
 
     public EvaluationReportService(EvaluationReportRepository repository, SimulationMapper mapper,
                                    SimulationRepository simulationRepository,
-                                   com.grupo3aor.innovationlab.repository.AlertRepository alertRepository,
-                                   com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository readingRepository) {
+                                   AlertRepository alertRepository,
+                                   PhysiologicalReadingRepository readingRepository,
+                                   ClinicalFormatter clinicalFormatter,
+                                   RuleRepository ruleRepository) {
         this.repository = repository;
         this.mapper = mapper;
         this.simulationRepository = simulationRepository;
         this.alertRepository = alertRepository;
         this.readingRepository = readingRepository;
+        this.clinicalFormatter = clinicalFormatter;
+        this.ruleRepository = ruleRepository;
     }
 
     @Transactional
     public EvaluationReportDTO saveReport(EvaluationReportDTO dto, String userEmail, String ipAddress) {
-        // I resolve the Simulation entity first to establish a proper FK relation.
-        // This ensures reports can only be created for simulations that actually exist.
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
 
-        // Remove any existing report for this simulation to prevent NonUniqueResultException
         repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simulation.getId()).ifPresent(repository::delete);
-        repository.flush(); // Ensure deletion is committed before inserting
 
         EvaluationReport report = mapper.toEntity(dto, simulation);
 
@@ -68,14 +81,13 @@ public class EvaluationReportService {
         report.setUpdatedBy(userEmail);
         report.setOriginIp(ipAddress);
 
-        // Generate the PDF content dynamically
-        byte[] pdfBytes = generatePdfBytes(report, simulation);
+        byte[] pdfBytes = generatePdfBytes(report, simulation, dto.getCutOffSeconds());
         report.setPdfContent(pdfBytes);
 
         return mapper.toDto(repository.save(report));
     }
 
-    private byte[] generatePdfBytes(EvaluationReport report, Simulation simulation) {
+    private byte[] generatePdfBytes(EvaluationReport report, Simulation simulation, Double cutOffSeconds) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             Document document = new Document();
             PdfWriter.getInstance(document, baos);
@@ -85,73 +97,77 @@ public class EvaluationReportService {
             Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14);
             Font textFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
             Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+            Font disclaimerFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9, Color.DARK_GRAY);
             
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-            document.add(new Paragraph("VitalSim - Relatorio de Avaliacao", titleFont));
-            document.add(new Paragraph("Simulacao: " + simulation.getId(), textFont));
-            document.add(new Paragraph("Contexto da Avaliacao: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
-            // Computar Intervalo Temporal Real
-            PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulation.getId());
-            PhysiologicalReading lastReading = readingRepository.findFirstBySimulation_IdOrderByTimestampDesc(simulation.getId());
+            document.add(new Paragraph("VitalSim - Relatório Técnico de Avaliação", titleFont));
+            document.add(new Paragraph("\n"));
+            document.add(new Paragraph("CABEÇALHO FACTUAL", subtitleFont));
+            document.add(new Paragraph("ID da Simulação: " + simulation.getId(), textFont));
+            document.add(new Paragraph("Contexto / Paciente: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
+            document.add(new Paragraph("Operador: " + (simulation.getUser() != null ? simulation.getUser().getFirstName() + " " + simulation.getUser().getLastName() : "N/A"), textFont));
+            
+            // Rules in execution
+            String rulesNames = "N/A";
+            List<Rule> activeRules = ruleRepository.findByActiveTrue();
+            if (activeRules != null && !activeRules.isEmpty()) {
+                rulesNames = activeRules.stream().map(Rule::getName).collect(Collectors.joining(", "));
+            }
+            document.add(new Paragraph("Regras em Execução: " + rulesNames, textFont));
+            
             String intervaloStr = report.getIntervaloTemporal() != null ? report.getIntervaloTemporal() : "N/A";
             LocalDateTime startBaseTime = simulation.getStartedAt() != null ? simulation.getStartedAt() : LocalDateTime.now();
 
-            if (firstReading != null && firstReading.getTimestamp() != null) {
-                startBaseTime = firstReading.getTimestamp();
-            }
-
-            document.add(new Paragraph("Data: " + startBaseTime.format(formatter), textFont));
-
-            if (firstReading != null && firstReading.getTimestamp() != null && lastReading != null && lastReading.getTimestamp() != null) {
-                LocalDateTime first = firstReading.getTimestamp();
-                LocalDateTime last = lastReading.getTimestamp();
-                long seconds = Duration.between(first, last).getSeconds();
-                long minutes = seconds / 60;
-                long secs = seconds % 60;
-                intervaloStr = String.format("%02d:%02d minutos de registo", minutes, secs);
-            }
+            document.add(new Paragraph("Data de Início: " + startBaseTime.format(formatter), textFont));
             document.add(new Paragraph("Intervalo Temporal: " + intervaloStr, textFont));
-            
             document.add(new Paragraph("\n"));
             
-            document.add(new Paragraph("Resumo e Justificacao Analitica", subtitleFont));
-            document.add(new Paragraph(report.getRationaleText() != null ? report.getRationaleText() : "N/A", textFont));
-            document.add(new Paragraph("\n"));
+            // If cutOffSeconds is provided, filter alerts by timestamp to only include data
+            // up to the stop point. This allows PDF generation to proceed independently of
+            // the slow bulkDelete in stopSimulation — the PDF itself does the filtering.
+            List<Alert> alerts;
+            LocalDateTime finalCutOff = null;
+            if (cutOffSeconds != null && simulation.getStartedAt() != null) {
+                finalCutOff = simulation.getStartedAt().plusNanos((long)(cutOffSeconds * 1_000_000_000L)).plusSeconds(1);
+                alerts = alertRepository.findBySimulationIdUpToCutoff(simulation.getId(), finalCutOff);
+                log.info("PDF generation: filtered alerts up to {} for simulation {}", finalCutOff, simulation.getId());
+            } else {
+                alerts = alertRepository.findBySimulation_Id(simulation.getId());
+            }
 
-            // 1. Tabela de Alertas (Registo de Eventos)
-            document.add(new Paragraph("Registo de Alertas (Eventos Clinicos)", subtitleFont));
+            document.add(new Paragraph("Registo Cronológico de Eventos Fisiológicos", subtitleFont));
             document.add(new Paragraph("\n"));
             
-            List<Alert> alerts = alertRepository.findBySimulation_Id(simulation.getId());
             if (alerts == null || alerts.isEmpty()) {
-                document.add(new Paragraph("Nenhum alerta registado durante esta simulacao.", textFont));
+                document.add(new Paragraph("Nenhum evento registado durante esta simulação.", textFont));
             } else {
                 PdfPTable alertTable = new PdfPTable(5);
                 alertTable.setWidthPercentage(100);
-                alertTable.setWidths(new float[]{1.5f, 1f, 1.5f, 1f, 3f});
+                alertTable.setWidths(new float[]{0.6f, 1.5f, 1.5f, 1.2f, 3f});
                 
                 alertTable.addCell(new Phrase("Instante", boldFont));
                 alertTable.addCell(new Phrase("Sistema", boldFont));
                 alertTable.addCell(new Phrase("Regra", boldFont));
-                alertTable.addCell(new Phrase("Alerta", boldFont));
-                alertTable.addCell(new Phrase("Rationale Analítico", boldFont));
+                alertTable.addCell(new Phrase("Tipo Evento", boldFont));
+                alertTable.addCell(new Phrase("Racional Legível", boldFont));
                 
-                // Helper class to sort events chronologically
                 class ReportEvent implements Comparable<ReportEvent> {
                     LocalDateTime time;
                     String systemName;
                     String ruleName;
-                    String severity;
+                    String type;
                     String rationale;
+                    Color bgColor;
 
-                    ReportEvent(LocalDateTime time, String systemName, String ruleName, String severity, String rationale) {
+                    ReportEvent(LocalDateTime time, String systemName, String ruleName, String type, String rationale, Color bgColor) {
                         this.time = time;
                         this.systemName = systemName;
                         this.ruleName = ruleName;
-                        this.severity = severity;
+                        this.type = type;
                         this.rationale = rationale;
+                        this.bgColor = bgColor;
                     }
 
                     @Override
@@ -164,20 +180,37 @@ public class EvaluationReportService {
                 }
 
                 List<ReportEvent> events = new ArrayList<>();
-                for (Alert a : alerts) {
-                    String sysName = a.getRule() != null && a.getRule().getSystem() != null ? a.getRule().getSystem().getSystemName() : "N/A";
-                    String rName = a.getRule() != null ? a.getRule().getName() : "N/A";
-                    String triggerSev = a.getRule() != null ? a.getRule().getSeverity().name() : "N/A";
-                    String justif = generateAnalyticalRationale(a, false);
 
-                    if (a.getTimestamp() != null) {
-                        events.add(new ReportEvent(a.getTimestamp(), sysName, rName, triggerSev, justif));
+                // Cores em tons pastel
+                Color redPastel = new Color(255, 180, 171, 100);
+                Color yellowPastel = new Color(250, 189, 0, 100);
+                Color greenPastel = new Color(129, 201, 149, 100);
+                Color orangePastel = new Color(255, 213, 79, 100);
+
+                for (Alert a : alerts) {
+                    String rName = (a.getRule() != null && a.getRule().getName() != null && !a.getRule().getName().isEmpty())
+                                   ? a.getRule().getName()
+                                   : "Regra Desconhecida";
+                    
+                    String sysName = (a.getRule() != null && a.getRule().getSystem() != null)
+                                     ? a.getRule().getSystem().getSystemName()
+                                     : "N/A";
+
+                    String triggerSev = (a.getRule() != null && a.getRule().getSeverity() != null) 
+                                        ? a.getRule().getSeverity().name() 
+                                        : "WARNING";
+
+                    Color triggerColor = "CRITICO".equalsIgnoreCase(triggerSev) ? redPastel : orangePastel;
+                    String justif = clinicalFormatter.formatRationale(a);
+
+                    if (a.getTimestamp() != null && (finalCutOff == null || !a.getTimestamp().isAfter(finalCutOff))) {
+                        events.add(new ReportEvent(a.getTimestamp(), sysName, rName, triggerSev.toUpperCase(), justif, triggerColor));
                     }
-                    if (a.getWarningAt() != null) {
-                        events.add(new ReportEvent(a.getWarningAt(), sysName, rName, "AVISO (Melhoria)", "Os sinais vitais começam a regressar à zona de segurança."));
+                    if (a.getWarningAt() != null && (finalCutOff == null || !a.getWarningAt().isAfter(finalCutOff))) {
+                        events.add(new ReportEvent(a.getWarningAt(), sysName, rName, "AVISO", "Valores iniciam aproximação à zona limite.", yellowPastel));
                     }
-                    if (a.getResolvedAt() != null) {
-                        events.add(new ReportEvent(a.getResolvedAt(), sysName, rName + " (Estabilizado)", "NORMAL", "Paciente estabilizado. Valores normalizados."));
+                    if (a.getResolvedAt() != null && (finalCutOff == null || !a.getResolvedAt().isAfter(finalCutOff))) {
+                        events.add(new ReportEvent(a.getResolvedAt(), sysName, rName, "NORMALIZAÇÃO", "Parâmetro dentro dos limites predefinidos.", greenPastel));
                     }
                 }
                 
@@ -185,27 +218,40 @@ public class EvaluationReportService {
 
                 for (ReportEvent ev : events) {
                     String instante = "N/A";
-                    LocalDateTime startBase = (firstReading != null && firstReading.getTimestamp() != null) 
-                            ? firstReading.getTimestamp() 
-                            : (simulation.getStartedAt() != null ? simulation.getStartedAt() : null);
-                    if (ev.time != null && startBase != null) {
-                        long diffSecs = Duration.between(startBase, ev.time).getSeconds();
+                    if (ev.time != null && startBaseTime != null) {
+                        long diffSecs = Duration.between(startBaseTime, ev.time).getSeconds();
                         diffSecs = Math.max(0, diffSecs);
                         instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
                     } else if (ev.time != null) {
                         instante = ev.time.format(timeFormatter);
                     }
 
-                    alertTable.addCell(new Phrase(instante != null ? instante : "N/A", textFont));
-                    alertTable.addCell(new Phrase(ev.systemName != null ? ev.systemName : "N/A", textFont));
-                    alertTable.addCell(new Phrase(ev.ruleName != null ? ev.ruleName : "N/A", textFont));
-                    alertTable.addCell(new Phrase(ev.severity != null ? ev.severity : "N/A", textFont));
-                    alertTable.addCell(new Phrase(ev.rationale != null ? ev.rationale : "N/A", textFont));
+                    PdfPCell cell1 = new PdfPCell(new Phrase(instante != null ? instante : "N/A", textFont));
+                    PdfPCell cell2 = new PdfPCell(new Phrase(ev.systemName != null ? ev.systemName : "N/A", textFont));
+                    PdfPCell cell3 = new PdfPCell(new Phrase(ev.ruleName != null ? ev.ruleName : "N/A", textFont));
+                    PdfPCell cell4 = new PdfPCell(new Phrase(ev.type != null ? ev.type : "N/A", textFont));
+                    PdfPCell cell5 = new PdfPCell(new Phrase(ev.rationale != null ? ev.rationale : "N/A", textFont));
+
+                    if (ev.bgColor != null) {
+                        cell1.setBackgroundColor(ev.bgColor);
+                        cell2.setBackgroundColor(ev.bgColor);
+                        cell3.setBackgroundColor(ev.bgColor);
+                        cell4.setBackgroundColor(ev.bgColor);
+                        cell5.setBackgroundColor(ev.bgColor);
+                    }
+
+                    alertTable.addCell(cell1);
+                    alertTable.addCell(cell2);
+                    alertTable.addCell(cell3);
+                    alertTable.addCell(cell4);
+                    alertTable.addCell(cell5);
                 }
                 document.add(alertTable);
             }
             
-            // Fechar o documento finaliza a escrita no ByteArrayOutputStream
+            document.add(new Paragraph("\n"));
+            document.add(new Paragraph("Nota: Este relatório descreve eventos baseados em regras predefinidas e não constitui diagnóstico clínico.", disclaimerFont));
+            
             document.close();
             return baos.toByteArray();
         } catch (Exception e) {
@@ -213,39 +259,20 @@ public class EvaluationReportService {
         }
     }
 
-    private String generateAnalyticalRationale(Alert alert, boolean isResolved) {
-        if (alert.getRule() == null) {
-            return "Ativação baseada nas regras configuradas.";
-        }
-        if (alert.getRule().getAnalyticalJustification() != null && !alert.getRule().getAnalyticalJustification().trim().isEmpty()) {
-            return alert.getRule().getAnalyticalJustification();
-        }
-        if (alert.getRule().getExpressionDsl() == null) {
-            return "Ativação baseada nas regras configuradas.";
-        }
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            RuleCondition condition = mapper.readValue(alert.getRule().getExpressionDsl(), RuleCondition.class);
-            
-            String verb = "violou a condição";
-            if ("<".equals(condition.getOperator())) verb = "ficou abaixo do limite";
-            else if (">".equals(condition.getOperator())) verb = "superou o limite";
-            else if ("==".equals(condition.getOperator())) verb = "igualou o valor crítico";
-
-            return String.format("A métrica '%s' registou o valor %.2f, o que %s definido (%s %.2f).",
-                    condition.getMetric(),
-                    alert.getValueAtTrigger(),
-                    verb,
-                    condition.getOperator(),
-                    condition.getActivationThreshold() != null ? condition.getActivationThreshold() : 0.0);
-        } catch (Exception e) {
-            return String.format("O valor %.2f disparou a condição analítica: %s", alert.getValueAtTrigger(), alert.getRule().getExpressionDsl());
-        }
-    }
-
     @Transactional(readOnly = true)
     public EvaluationReport getRawReportBySimulation(UUID simulationId) {
         return repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simulationId)
                 .orElseThrow(() -> new RuntimeException("Evaluation report missing for target simulation context"));
+    }
+
+    /**
+     * Combined save + download in one transactional call.
+     * Eliminates the second HTTP roundtrip for PDF download.
+     */
+    @Transactional
+    public byte[] generateAndDownloadPdf(EvaluationReportDTO dto, String userEmail, String ipAddress) {
+        saveReport(dto, userEmail, ipAddress);
+        EvaluationReport report = getRawReportBySimulation(dto.getSimulationId());
+        return report.getPdfContent();
     }
 }

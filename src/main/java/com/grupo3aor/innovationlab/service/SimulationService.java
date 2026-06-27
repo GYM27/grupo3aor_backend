@@ -76,13 +76,17 @@ public class SimulationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + simulationId));
 
         // We must protect this block to prevent ending a simulation that is already finalized or canceled!
+        log.info("STOP DEBUG: Entering stopSimulation for id={} with current status={}", simulationId, sim.getStatus());
         if (sim.getStatus() == SimulationStatus.FINALIZADA || sim.getStatus() == SimulationStatus.CANCELADA) {
+            log.warn("STOP DEBUG: Simulation {} is already finalized or canceled. Throwing exception.", simulationId);
             throw new IllegalStateException("Simulation is already finalized or canceled.");
         }
 
         if (cutOffSeconds != null) {
             PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulationId);
+            log.info("STOP DEBUG: cutOffSeconds = {}", cutOffSeconds);
             if (firstReading != null) {
+                log.info("STOP DEBUG: firstReading timestamp = {}", firstReading.getTimestamp());
                 LocalDateTime exactBaseTime = firstReading.getTimestamp();
                 LocalDateTime cutOffAbsolute = exactBaseTime.plusNanos((long)(cutOffSeconds * 1_000_000_000L)).plusSeconds(1);
                 readingRepository.bulkDeleteFutureReadings(simulationId, cutOffAbsolute);
@@ -100,7 +104,7 @@ public class SimulationService {
         simulationEngineService.decrementActiveSimulations();
         ruleEvaluatorService.clearSimulationState(simulationId);
         
-        return mapToResponse(saved);
+        return mapToResponseLightweight(saved);
     }
 
     /**
@@ -134,7 +138,7 @@ public class SimulationService {
         simulationEngineService.decrementActiveSimulations();
         ruleEvaluatorService.clearSimulationState(simulationId);
         
-        return mapToResponse(saved);
+        return mapToResponseLightweight(saved);
     }
 
     /**
@@ -155,7 +159,7 @@ public class SimulationService {
         // We can tell the engine to stop polling for this specific simulation
         simulationEngineService.decrementActiveSimulations();
 
-        return mapToResponse(saved);
+        return mapToResponseLightweight(saved);
     }
 
     /**
@@ -182,21 +186,70 @@ public class SimulationService {
     // =========================================================
     // HELPER MAPPERS
     // =========================================================
+
+    /**
+     * Lightweight mapper that skips the expensive alert query.
+     * Used by stop/cancel/pause operations where the frontend discards the events list.
+     */
+    private SimulationResponse mapToResponseLightweight(Simulation sim) {
+        String scenarioName = sim.getScenario() != null ? sim.getScenario().getName() : "Unknown Scenario";
+        String studentName = sim.getUser() != null ? (sim.getUser().getFirstName() + " " + sim.getUser().getLastName()) : "Unknown User";
+
+        return SimulationResponse.builder()
+                .id(sim.getId())
+                .scenarioId(sim.getScenario() != null ? sim.getScenario().getId() : null)
+                .scenarioName(scenarioName)
+                .userEmail(sim.getUser() != null ? sim.getUser().getEmail() : "Unknown")
+                .studentName(studentName)
+                .startedAt(sim.getStartedAt())
+                .endedAt(sim.getEndedAt())
+                .status(sim.getStatus())
+                .events(java.util.Collections.emptyList())
+                .build();
+    }
+
+    /**
+     * Full mapper that loads all alert events. Used by getHistory() where events are needed.
+     */
     private SimulationResponse mapToResponse(Simulation sim) {
         String scenarioName = sim.getScenario() != null ? sim.getScenario().getName() : "Unknown Scenario";
         String studentName = sim.getUser() != null ? (sim.getUser().getFirstName() + " " + sim.getUser().getLastName()) : "Unknown User";
         
         List<AlertEventDTO> events = alertRepository.findBySimulation_Id(sim.getId()).stream()
-                .map(alert -> {
+                .flatMap(alert -> {
+                    List<AlertEventDTO> subEvents = new java.util.ArrayList<>();
                     String ruleName = (alert.getRule() != null && alert.getRule().getName() != null && !alert.getRule().getName().isEmpty())
                             ? alert.getRule().getName()
                             : "Sem Nome";
-                    return AlertEventDTO.builder()
+                    boolean isCritical = alert.getRule() != null && 
+                                         alert.getRule().getSeverity() != null && 
+                                         alert.getRule().getSeverity().name().equalsIgnoreCase("CRITICO");
+                    String severityType = isCritical ? "critical" : "warning";
+                    subEvents.add(AlertEventDTO.builder()
                         .timestamp(alert.getTimestamp())
                         .description("Regra " + ruleName + " acionada (" + String.format("%.1f", alert.getValueAtTrigger()) + ")")
-                        .type(alert.getStatus().name().toLowerCase())
-                        .build();
+                        .type(severityType)
+                        .build());
+                        
+                    if (alert.getWarningAt() != null) {
+                        subEvents.add(AlertEventDTO.builder()
+                            .timestamp(alert.getWarningAt())
+                            .description("Regra " + ruleName + " em estabilização")
+                            .type("warning")
+                            .build());
+                    }
+                    
+                    if (alert.getResolvedAt() != null) {
+                        subEvents.add(AlertEventDTO.builder()
+                            .timestamp(alert.getResolvedAt())
+                            .description("Regra " + ruleName + " resolvida")
+                            .type("success")
+                            .build());
+                    }
+                    
+                    return subEvents.stream();
                 })
+                .sorted(java.util.Comparator.comparing(AlertEventDTO::getTimestamp))
                 .collect(Collectors.toList());
 
         return SimulationResponse.builder()
