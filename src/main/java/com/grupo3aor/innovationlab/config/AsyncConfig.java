@@ -36,6 +36,9 @@ public class AsyncConfig {
         // new tasks are silently discarded to prevent server crash or lag.
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());
         
+        // I added this decorator so we don't lose our MDC context (like User and IP) when switching threads!
+        executor.setTaskDecorator(new MdcTaskDecorator());
+        
         executor.initialize();
         return executor;
     }

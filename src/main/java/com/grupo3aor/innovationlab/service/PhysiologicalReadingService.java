@@ -78,6 +78,7 @@ public class PhysiologicalReadingService {
     @Transactional
     public List<PhysiologicalReadingDTO> createReadingBatch(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
         if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
+        log.info("Processing telemetry batch of {} readings", dtos.size());
 
         // 1. Local cache to avoid hitting the DB for the same simulation multiple times in a single batch
         Map<UUID, Simulation> simulationCache = new HashMap<>();

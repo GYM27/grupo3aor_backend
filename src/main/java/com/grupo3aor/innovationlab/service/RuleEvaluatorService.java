@@ -108,6 +108,7 @@ public class RuleEvaluatorService {
 
                             if (diffSeconds >= requiredSeconds) {
                                 // Trigger Alert
+                                log.info("Rule triggered: {} (ID: {}) for Simulation: {}", rule.getName(), rule.getId(), currentSim.getId());
                                 Alert newAlert = Alert.builder()
                                     .simulation(currentSim)
                                     .rule(rule)
@@ -144,6 +145,7 @@ public class RuleEvaluatorService {
 
                         if (diffSeconds >= requiredSeconds) {
                             // Stabilized!
+                            log.info("Alert resolved for Rule: {} (ID: {}) for Simulation: {}", rule.getName(), rule.getId(), currentSim.getId());
                             Alert activeAlert = alertRepository.findFirstBySimulationAndRuleAndStatusOrderByTimestampDesc(currentSim, rule, AlertStatus.ATIVO);
                             if (activeAlert != null) {
                                 activeAlert.setStatus(AlertStatus.RESOLVIDO);
