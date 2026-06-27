@@ -28,8 +28,7 @@ public class Simulation extends Auditable {
 
     // =========================================================
     // MY PRIMARY KEY
-    // Using UUID here to ensure uniqueness across distributed systems,
-    // exactly like we planned for the Degraded Mode bonus feature!
+    // Using UUID here to ensure uniqueness across distributed systems.
     // =========================================================
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

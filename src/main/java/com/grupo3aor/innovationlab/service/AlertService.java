@@ -16,7 +16,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class AlertService {
 
     private final AlertRepository repository;
@@ -42,6 +45,8 @@ public class AlertService {
         Rule rule = ruleRepository.findById(dto.getRuleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + dto.getRuleId()));
 
+        log.info("Manual alert triggered for rule ID: {} in simulation ID: {}", rule.getId(), simulation.getId());
+
         Alert alert = mapper.toEntity(dto, simulation, rule);
 
         alert.setCreatedBy(userEmail);
@@ -55,6 +60,8 @@ public class AlertService {
     public AlertDTO updateStatus(UUID alertId, AlertStatus status, String userEmail) {
         Alert alert = repository.findById(alertId)
                 .orElseThrow(() -> new RuntimeException("Target system alert context not found"));
+
+        log.info("Alert {} status updated to {} by {}", alertId, status, userEmail);
 
         alert.setStatus(status);
         alert.setUpdatedBy(userEmail);

@@ -59,6 +59,11 @@ public class UserResponse {
     private boolean active;
 
     /**
+     * The system's session timeout configuration in minutes.
+     */
+    private Integer sessionTimeoutMinutes;
+
+    /**
      * Timestamp marking when the user profile was originally registered.
      */
     // I decided to include this specific creation timestamp in the outbound payload. 

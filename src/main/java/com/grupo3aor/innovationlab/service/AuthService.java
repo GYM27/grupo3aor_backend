@@ -14,6 +14,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.grupo3aor.innovationlab.dto.LoginRequest;
 import com.grupo3aor.innovationlab.dto.UserResponse;
+import com.grupo3aor.innovationlab.repository.GlobalSettingsRepository;
+import com.grupo3aor.innovationlab.domain.entity.GlobalSettings;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class AuthService {
     private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
     private final InvitationRepository invitationRepository;
+    private final GlobalSettingsRepository globalSettingsRepository;
 
     /**
      * Main constructor mapping core dependencies required for safe authorization lifecycles.
@@ -49,13 +52,15 @@ public class AuthService {
      * @param authenticationManager Infrastructure subsystem manager running standard authentication tasks.
      */
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService,
-        AuthenticationManager authenticationManager, InvitationRepository invitationRepository) {
+        AuthenticationManager authenticationManager, InvitationRepository invitationRepository,
+        GlobalSettingsRepository globalSettingsRepository) {
         
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.authenticationManager = authenticationManager;
         this.invitationRepository = invitationRepository;
+        this.globalSettingsRepository = globalSettingsRepository;
     }
 
     /**
@@ -185,12 +190,16 @@ public class AuthService {
             log.info("[AUDIT] Action: SUCCESSFUL_LOGIN | Authenticated User: {} | Profile clearance: {} | Origin IP: {}", 
                     user.getEmail(), user.getPerfil().name(), clientIp);
                     
+            GlobalSettings settings = globalSettingsRepository.findById(1L).orElse(new GlobalSettings());
+            Integer sessionTimeout = settings.getSessionTimeoutMinutes() != null ? settings.getSessionTimeoutMinutes() : 30;
+                    
             return UserResponse.builder()
                     .email(user.getEmail())
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
                     .perfil(user.getPerfil().name())
                     .accountActivated(user.isAccountActivated())
+                    .sessionTimeoutMinutes(sessionTimeout)
                     .createdAt(user.getCreatedAt())
                     .build();
         } catch (Exception e) {

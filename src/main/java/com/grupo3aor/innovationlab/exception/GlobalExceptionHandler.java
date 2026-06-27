@@ -23,16 +23,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        log.warn("[NOT FOUND] {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("[BAD REQUEST] {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<String> handleIllegalStateException(IllegalStateException ex) {
+        log.warn("[CONFLICT] {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
 
@@ -44,23 +47,26 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
+        log.warn("[VALIDATION FAILED] {} validation errors", errors.size());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
     
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<String> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex) {
+        log.warn("[ACCESS DENIED] User attempted an unauthorized action");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: You do not have permission to perform this action.");
     }
     
     @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
     public ResponseEntity<String> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        log.warn("[RESPONSE STATUS EXCEPTION] Status: {}, Reason: {}", ex.getStatusCode(), ex.getReason());
         return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
     }
 
     // Optional fallback for unexpected runtime exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGenericException(Exception ex) {
-        log.error("[FATAL ERROR] Exceção interna não tratada apanhada pelo interceptor global:", ex);
+        log.error("[FATAL ERROR] I caught an unhandled internal exception in the global interceptor:", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected internal error occurred.");
     }
 }
