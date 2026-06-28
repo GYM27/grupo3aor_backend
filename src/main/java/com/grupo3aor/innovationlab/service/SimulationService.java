@@ -83,14 +83,16 @@ public class SimulationService {
         }
 
         if (cutOffSeconds != null) {
-            PhysiologicalReading firstReading = readingRepository.findFirstBySimulation_IdOrderByTimestampAsc(simulationId);
             log.info("STOP DEBUG: cutOffSeconds = {}", cutOffSeconds);
-            if (firstReading != null) {
-                log.info("STOP DEBUG: firstReading timestamp = {}", firstReading.getTimestamp());
-                LocalDateTime exactBaseTime = firstReading.getTimestamp();
+            sim.setSimulatedDurationSeconds(cutOffSeconds);
+            LocalDateTime exactBaseTime = sim.getStartedAt();
+            if (exactBaseTime != null) {
+                log.info("STOP DEBUG: exactBaseTime = {}", exactBaseTime);
                 LocalDateTime cutOffAbsolute = exactBaseTime.plusNanos((long)(cutOffSeconds * 1_000_000_000L)).plusSeconds(1);
                 readingRepository.bulkDeleteFutureReadings(simulationId, cutOffAbsolute);
                 alertRepository.bulkDeleteFutureAlerts(simulationId, cutOffAbsolute);
+                alertRepository.clearFutureWarnings(simulationId, cutOffAbsolute);
+                alertRepository.clearFutureResolutions(simulationId, cutOffAbsolute);
                 log.info("Truncated simulation {} data after {}", simulationId, cutOffAbsolute);
             }
         }
@@ -204,6 +206,7 @@ public class SimulationService {
                 .startedAt(sim.getStartedAt())
                 .endedAt(sim.getEndedAt())
                 .status(sim.getStatus())
+                .simulatedDurationSeconds(sim.getSimulatedDurationSeconds())
                 .events(java.util.Collections.emptyList())
                 .build();
     }
@@ -261,6 +264,7 @@ public class SimulationService {
                 .startedAt(sim.getStartedAt())
                 .endedAt(sim.getEndedAt())
                 .status(sim.getStatus())
+                .simulatedDurationSeconds(sim.getSimulatedDurationSeconds())
                 .events(events)
                 .build();
     }

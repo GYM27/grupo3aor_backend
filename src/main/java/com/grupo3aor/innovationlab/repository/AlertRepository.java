@@ -52,4 +52,20 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
             @org.springframework.data.repository.query.Param("simId") UUID simId, 
             @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
     );
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("UPDATE Alert a SET a.warningAt = null WHERE a.simulation.id = :simId AND a.warningAt > :timestamp")
+    void clearFutureWarnings(
+            @org.springframework.data.repository.query.Param("simId") UUID simId, 
+            @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
+    );
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("UPDATE Alert a SET a.resolvedAt = null WHERE a.simulation.id = :simId AND a.resolvedAt > :timestamp")
+    void clearFutureResolutions(
+            @org.springframework.data.repository.query.Param("simId") UUID simId, 
+            @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
+    );
 }
