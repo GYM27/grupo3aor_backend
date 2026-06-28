@@ -93,43 +93,43 @@ class ZZZEntityCoverageTest {
         assertThat(rule.isTriggeredBy("HR", 100.0)).isFalse();
         
         // HEART_RATE > 100
-        rule.setExpressionDsl("{\"metric\":\"HEART_RATE\",\"operator\":\">\",\"threshold\":100.0}");
+        rule.setExpressionDsl("{\"metric\":\"HEART_RATE\",\"operator\":\">\",\"activationThreshold\":100.0}");
         assertThat(rule.isTriggeredBy("HR", 120.0)).isTrue();
         assertThat(rule.isTriggeredBy("HR", 90.0)).isFalse();
         
         // SPO2 < 90
         rule = new Rule(); // reset cache
-        rule.setExpressionDsl("{\"metric\":\"SPO2\",\"operator\":\"<\",\"threshold\":90.0}");
+        rule.setExpressionDsl("{\"metric\":\"SPO2\",\"operator\":\"<\",\"activationThreshold\":90.0}");
         assertThat(rule.isTriggeredBy("SpO2", 85.0)).isTrue();
         assertThat(rule.isTriggeredBy("SpO2", 95.0)).isFalse();
         
         // BP == 120
         rule = new Rule();
-        rule.setExpressionDsl("{\"metric\":\"BP\",\"operator\":\"==\",\"threshold\":120.0}");
+        rule.setExpressionDsl("{\"metric\":\"BP\",\"operator\":\"==\",\"activationThreshold\":120.0}");
         assertThat(rule.isTriggeredBy("SBP", 120.0)).isTrue();
         assertThat(rule.isTriggeredBy("SBP", 130.0)).isFalse();
 
         // RR > 20
         rule = new Rule();
-        rule.setExpressionDsl("{\"metric\":\"RR\",\"operator\":\">\",\"threshold\":20.0}");
+        rule.setExpressionDsl("{\"metric\":\"RR\",\"operator\":\">\",\"activationThreshold\":20.0}");
         assertThat(rule.isTriggeredBy("RespirationRate", 25.0)).isTrue();
         assertThat(rule.isTriggeredBy("RespirationRate", 15.0)).isFalse();
 
         // TEMP > 38
         rule = new Rule();
-        rule.setExpressionDsl("{\"metric\":\"TEMP\",\"operator\":\">\",\"threshold\":38.0}");
+        rule.setExpressionDsl("{\"metric\":\"TEMP\",\"operator\":\">\",\"activationThreshold\":38.0}");
         assertThat(rule.isTriggeredBy("CoreTemperature", 39.0)).isTrue();
         assertThat(rule.isTriggeredBy("CoreTemperature", 37.0)).isFalse();
 
         // Custom metric > 10
         rule = new Rule();
-        rule.setExpressionDsl("{\"metric\":\"CustomMetric\",\"operator\":\">\",\"threshold\":10.0}");
+        rule.setExpressionDsl("{\"metric\":\"CustomMetric\",\"operator\":\">\",\"activationThreshold\":10.0}");
         assertThat(rule.isTriggeredBy("CustomMetric", 15.0)).isTrue();
         assertThat(rule.isTriggeredBy("WrongMetric", 15.0)).isFalse();
         
         // Invalid operator
         rule = new Rule();
-        rule.setExpressionDsl("{\"metric\":\"HR\",\"operator\":\"!=\",\"threshold\":100.0}");
+        rule.setExpressionDsl("{\"metric\":\"HR\",\"operator\":\"!=\",\"activationThreshold\":100.0}");
         assertThat(rule.isTriggeredBy("HR", 150.0)).isFalse();
     }
 

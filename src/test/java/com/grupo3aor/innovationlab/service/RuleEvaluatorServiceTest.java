@@ -75,6 +75,7 @@ class RuleEvaluatorServiceTest {
     @DisplayName("evaluateReading: should not trigger alert immediately due to persistence")
     void evaluateReading_shouldNotTriggerImmediately() throws Exception {
         when(ruleRepository.findByActiveTrue()).thenReturn(List.of(mockRule));
+        when(mockRule.isApplicableTo(anyString())).thenReturn(true);
         when(mockRule.isTriggeredBy(eq("HR"), anyDouble())).thenReturn(true);
         // Persistence > 0
         when(mockRule.getActivationPersistence()).thenReturn(30);
