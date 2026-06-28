@@ -108,10 +108,12 @@ public class PhysiologicalReadingService {
             log.error("Failed to evaluate rules for batch: {}", e.getMessage(), e);
         }
 
-        // 4. Save EVERYTHING at once (True Batch Insert)
-        List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
-
-        return savedReadings.stream()
+        // 4. Do NOT save the 52,000 readings into the database!
+        // We only needed them in RAM to evaluate the rules and generate the Alerts.
+        // Saving 52,000 rows takes 1.5 minutes and causes massive DB locking ("pending" requests).
+        // Since the frontend replays BioGears locally, it never fetches these readings.
+        // We just return the DTOs (with null IDs) so the frontend is happy.
+        return entitiesToSave.stream()
                 .map(mapper::toDto)
                 .toList();
     }

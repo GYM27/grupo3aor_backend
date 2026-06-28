@@ -41,4 +41,20 @@ public class EvaluationReportController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(report.getPdfContent());
     }
+
+    /**
+     * Combined endpoint: generates the PDF report and returns it in one HTTP call.
+     * Eliminates the need for a separate POST + GET sequence.
+     */
+    @PostMapping("/generate-and-download")
+    public ResponseEntity<byte[]> generateAndDownload(
+            @Valid @RequestBody EvaluationReportDTO dto,
+            Authentication authentication,
+            HttpServletRequest request) {
+        byte[] pdfBytes = service.generateAndDownloadPdf(dto, authentication.getName(), request.getRemoteAddr());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report-" + dto.getSimulationId() + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
 }

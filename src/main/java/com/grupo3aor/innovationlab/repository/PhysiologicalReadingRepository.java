@@ -5,6 +5,11 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 /**
  * Repository interface for managing PhysiologicalReading entities in the database.
@@ -42,14 +47,31 @@ public interface PhysiologicalReadingRepository extends JpaRepository<Physiologi
     List<PhysiologicalReading> findTop20BySimulation_IdOrderByTimestampDesc(UUID simulationId);
 
     /**
+     * Finds readings for a simulation within a specific time window.
+     * Essential for high-performance snapshot extraction during PDF generation.
+     */
+    @Query(
+        "SELECT r FROM PhysiologicalReading r " +
+        "WHERE r.simulation.id = :simId " +
+        "AND r.timestamp >= :startTime " +
+        "AND r.timestamp <= :endTime " +
+        "ORDER BY r.timestamp DESC"
+    )
+    List<PhysiologicalReading> findSnapshotWindow(
+            @Param("simId") UUID simId, 
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
      * Bulk deletes readings that occur after a specific timestamp.
      * Uses @Modifying and @Query to prevent N+1 select/delete problems.
      */
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Query("UPDATE PhysiologicalReading p SET p.active = false, p.updatedAt = CURRENT_TIMESTAMP WHERE p.simulation.id = :simId AND p.timestamp > :timestamp")
+    @Modifying
+    @Transactional
+    @Query("UPDATE PhysiologicalReading p SET p.active = false, p.updatedAt = CURRENT_TIMESTAMP WHERE p.simulation.id = :simId AND p.timestamp > :timestamp")
     void bulkDeleteFutureReadings(
-            @org.springframework.data.repository.query.Param("simId") UUID simId, 
-            @org.springframework.data.repository.query.Param("timestamp") java.time.LocalDateTime timestamp
+            @Param("simId") UUID simId, 
+            @Param("timestamp") LocalDateTime timestamp
     );
 }

@@ -64,6 +64,14 @@ public class Simulation extends Auditable {
     private LocalDateTime endedAt;
 
     // =========================================================
+    // SIMULATED DURATION
+    // Stores how much time passed INSIDE the simulation (e.g. 2 minutes) 
+    // even if it only took 10 real-world seconds to play.
+    // =========================================================
+    @Column(name = "simulated_duration_seconds")
+    private Double simulatedDurationSeconds;
+
+    // =========================================================
     // STATUS
     // Using an Enum to track if it's running, finished, or canceled.
     // Saved as a String to keep the DB readable!
