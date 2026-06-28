@@ -41,6 +41,8 @@ public class SimulationResponse {
     
     private SimulationStatus status;
 
+    private Double simulatedDurationSeconds;
+
     private List<AlertEventDTO> events;
 
 }

@@ -107,8 +107,10 @@ public class SimulationEngineService {
     private void processSimulationPlayback(Simulation sim) {
         String payload = sim.getScenario().getMetricsPayload();
         if (payload == null || payload.isBlank()) {
-            log.warn("[ENGINE] Simulation {} has no metrics payload. Marking as FINALIZADA.", sim.getId());
-            finalizeSimulation(sim);
+            log.info("[ENGINE DEBUG] Ignoring BioGears simulation {}", sim.getId());
+            // BioGears simulations do not have a metrics payload.
+            // They are driven by the CSV batch upload and the frontend timeline.
+            // We just ignore them in the engine loop and let the frontend explicitly stop them.
             return;
         }
 
@@ -122,7 +124,8 @@ public class SimulationEngineService {
             });
             
             if (metrics.isEmpty()) {
-                finalizeSimulation(sim);
+                // BioGears simulations have an empty metrics array [] in their dummy scenario.
+                // We should NOT finalize them, because the frontend controls the timeline.
                 return;
             }
 

@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.extern.slf4j.Slf4j;
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDateTime;
@@ -31,6 +33,7 @@ public class RuleEvaluatorService {
     private final AlertRepository alertRepository;
     private final RuleRepository ruleRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MeterRegistry meterRegistry;
     
     // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
     private final YAMLMapper yamlMapper = new YAMLMapper();
@@ -62,6 +65,7 @@ public class RuleEvaluatorService {
     }
 
     @Transactional
+    @Timed(value = "vitalsim.rule.evaluation.time", description = "Time taken to evaluate clinical rules")
     public void evaluateReadingsBatch(java.util.List<PhysiologicalReading> readings) {
         if (readings == null || readings.isEmpty()) return;
         
@@ -119,6 +123,7 @@ public class RuleEvaluatorService {
                                 
                                 newAlert = alertRepository.save(newAlert);
                                 broadcastAlert(newAlert, rule.getSeverity().name());
+                                meterRegistry.counter("vitalsim.alerts.triggered").increment();
                                 
                                 activeAlertsCache.add(rule.getId());
                                 tracker.firstBreach = null; // Reset breach tracker
@@ -152,6 +157,7 @@ public class RuleEvaluatorService {
                                 activeAlert.setResolvedAt(reading.getTimestamp());
                                 alertRepository.save(activeAlert);
                                 broadcastAlert(activeAlert, "NORMAL");
+                                meterRegistry.counter("vitalsim.alerts.resolved").increment();
                             }
                             
                             activeAlertsCache.remove(rule.getId());
