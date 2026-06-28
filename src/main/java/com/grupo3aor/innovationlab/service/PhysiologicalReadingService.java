@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ public class PhysiologicalReadingService {
     private final SimulationRepository simulationRepository;
     private final RuleEvaluatorService ruleEvaluatorService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public PhysiologicalReadingDTO createReading(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
@@ -77,8 +80,12 @@ public class PhysiologicalReadingService {
 
     @Transactional
     public List<PhysiologicalReadingDTO> createReadingBatch(List<PhysiologicalReadingDTO> dtos, String userEmail, String ipAddress) {
-        if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
-        log.info("Processing telemetry batch of {} readings", dtos.size());
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
+            log.info("Processing telemetry batch of {} readings", dtos.size());
+        
+        meterRegistry.summary("vitalsim.readings.batch.size").record(dtos.size());
 
         // 1. Local cache to avoid hitting the DB for the same simulation multiple times in a single batch
         Map<UUID, Simulation> simulationCache = new HashMap<>();
@@ -113,9 +120,12 @@ public class PhysiologicalReadingService {
         // Saving 52,000 rows takes 1.5 minutes and causes massive DB locking ("pending" requests).
         // Since the frontend replays BioGears locally, it never fetches these readings.
         // We just return the DTOs (with null IDs) so the frontend is happy.
-        return entitiesToSave.stream()
-                .map(mapper::toDto)
-                .toList();
+            return entitiesToSave.stream()
+                    .map(mapper::toDto)
+                    .toList();
+        } finally {
+            sample.stop(meterRegistry.timer("vitalsim.readings.batch.save.time", "description", "Time taken to process and save a CSV batch upload"));
+        }
     }
 
     @Transactional(readOnly = true)

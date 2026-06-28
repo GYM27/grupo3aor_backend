@@ -87,7 +87,7 @@ public class SecurityConfig {
                 .requestMatchers("/h2-console/**").permitAll()     // Free access to the H2 console
                 .requestMatchers("/api/auth/**").permitAll()        // Free access to Login and Registration endpoints
                 .requestMatchers("/api/ws/**").permitAll()          // I explicitly permitted access to our WebSocket handshake to prevent Spring Security from throwing 500 errors.
-                .requestMatchers("/actuator/health").permitAll()    // Free access to our Health check endpoint for monitoring
+                .requestMatchers("/actuator/health", "/actuator/metrics/**").permitAll()    // Free access to our Health check and metrics for monitoring
                 .requestMatchers("/ws/**").permitAll()              // Free access to WebSockets
 
                 // ALL other URLs not mentioned above will strictly require authentication!
