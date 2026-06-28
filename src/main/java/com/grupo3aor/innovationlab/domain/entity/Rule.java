@@ -55,6 +55,11 @@ public class Rule extends Auditable {
     @Column(name = "expression_dsl", columnDefinition = "TEXT")
     private String expressionDsl;
 
+    public void setExpressionDsl(String expressionDsl) {
+        this.expressionDsl = expressionDsl;
+        this.cachedCondition = null;
+    }
+
     // =========================================================
     // THE SEVERITY
     // I chose EnumType.STRING to save "ALERTA" or "CRITICO" in the DB, 

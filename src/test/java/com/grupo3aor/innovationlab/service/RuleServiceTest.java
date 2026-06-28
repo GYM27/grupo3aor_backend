@@ -280,8 +280,10 @@ class RuleServiceTest {
         // I capture the saved entity to assert that updatedBy was actually filled in
         // This is the regression test for Bug #3: the field was being silently ignored!
         ArgumentCaptor<Rule> ruleCaptor = ArgumentCaptor.forClass(Rule.class);
-        verify(ruleRepository).save(ruleCaptor.capture());
-        assertThat(ruleCaptor.getValue().getUpdatedBy()).isEqualTo("admin@vitalsim.pt");
+        verify(ruleRepository, times(2)).save(ruleCaptor.capture());
+        
+        // The last captured value should be the new rule version
+        assertThat(ruleCaptor.getAllValues().get(1).getUpdatedBy()).isEqualTo("admin@vitalsim.pt");
     }
 
     @Test

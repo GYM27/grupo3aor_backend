@@ -44,6 +44,9 @@ class AuthServiceTest {
     @Mock
     private AuthenticationManager authenticationManager;
 
+    @Mock
+    private com.grupo3aor.innovationlab.repository.GlobalSettingsRepository globalSettingsRepository;
+
     @InjectMocks
     private AuthService authService;
 
@@ -144,6 +147,7 @@ class AuthServiceTest {
         Authentication authentication = mock(Authentication.class);
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
         when(authenticationManager.authenticate(any())).thenReturn(authentication);
+        lenient().when(globalSettingsRepository.findById(1L)).thenReturn(Optional.of(new com.grupo3aor.innovationlab.domain.entity.GlobalSettings()));
 
         UserResponse response = authService.authenticateUser(loginRequest, "127.0.0.1");
 
