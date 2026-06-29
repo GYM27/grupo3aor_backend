@@ -15,7 +15,6 @@ import java.util.List;
 
 /**
  * Here we handle the business logic for Clinical Scenarios.
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Service

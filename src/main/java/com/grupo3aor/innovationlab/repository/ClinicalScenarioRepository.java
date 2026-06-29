@@ -13,7 +13,6 @@ import java.util.Optional;
  * I engineered this abstraction layer to manage clinical configuration access boundaries,
  * keeping separate tracking methods for active operational workflows and logical recycling dashboards.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Repository

@@ -33,7 +33,6 @@ import java.util.UUID;
  * I engineered this component to centralize identity management constraints, manage account
  * registration checks, handle secure email confirmation workflows, and record physical auditing lines.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Service

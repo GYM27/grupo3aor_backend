@@ -19,7 +19,6 @@ import org.hibernate.annotations.SQLRestriction;
  * I refactored it to extend {@link Auditable}, eliminating duplicated audit
  * columns and ensuring a single source of truth for timestamp management.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Entity

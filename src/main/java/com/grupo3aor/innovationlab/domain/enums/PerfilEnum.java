@@ -10,7 +10,6 @@ package com.grupo3aor.innovationlab.domain.enums;
  * NOTE: Further down the pipeline in the User entity, I mapped this enum using the @Enumerated(EnumType.STRING) annotation.
  * I engineered it this way to ensure database records remain highly readable during audits, avoiding obscure numerical indices.
  *
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 public enum PerfilEnum {

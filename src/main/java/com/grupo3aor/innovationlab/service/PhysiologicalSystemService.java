@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
  * I implemented this service to isolate transaction boundaries and business validation 
  * rules, preventing the REST controllers from directly manipulating persistent data.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Service

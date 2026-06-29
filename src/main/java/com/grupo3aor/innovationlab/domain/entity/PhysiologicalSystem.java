@@ -15,7 +15,6 @@ import org.hibernate.annotations.SQLDelete;
  * and structural validation. I refactored it to extend {@link Auditable},
  * centralizing all audit columns in a single inheritance chain.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Entity

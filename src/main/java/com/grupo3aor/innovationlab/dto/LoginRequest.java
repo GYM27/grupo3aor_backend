@@ -15,7 +15,6 @@ import lombok.Setter;
  * I engineered this data transfer object to establish rigid structural boundaries right 
  * at our application entrance, intercepting malformed payloads before they reach our core services.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Getter

@@ -13,7 +13,6 @@ import java.util.List;
  * that malicious users cannot inject administrative flags (like the active state) 
  * during scenario generation.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Getter

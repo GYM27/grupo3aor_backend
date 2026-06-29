@@ -21,7 +21,6 @@ import java.util.List;
  * I architected this controller to act as a strict perimeter gateway, authorizing requests
  * via Spring Security interceptors and delegating heavy processing to the underlying services.
  * </p>
- * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @RestController
