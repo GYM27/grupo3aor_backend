@@ -13,8 +13,6 @@ import java.util.List;
  * that malicious users cannot inject administrative flags (like the active state) 
  * during scenario generation.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @Getter
 @Setter
@@ -38,17 +36,17 @@ public class ClinicalScenarioRequest {
     private String description;
 
     /**
-     * Versão do padrão MDIB (Medical Device Information Base).
+     * Medical Device Information Base (MDIB) standard version.
      */
     private Integer mdibVersion;
 
     /**
-     * Identificador do dispositivo médico de origem.
+     * Identifier of the source medical device.
      */
     private String device;
 
     /**
-     * Lista de leituras fisiológicas incluídas no cenário clínico.
+     * List of physiological readings included in the clinical scenario.
      */
     private List<MetricDTO> metrics;
 }

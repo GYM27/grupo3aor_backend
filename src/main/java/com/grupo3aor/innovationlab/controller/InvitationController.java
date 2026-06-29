@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST controller for managing invitations.
+ * Provides endpoints for retrieving, resending, and deleting user invitations.
+ */
 @RestController
 @RequestMapping("/api/invitations")
 @RequiredArgsConstructor

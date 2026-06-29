@@ -14,7 +14,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 
 /**
- * Automatically seeds the database with essential physiological systems if they don't exist yet.
+ * Bootstrapping component that automatically seeds the database with initial 
+ * essential data upon application startup.
+ * It ensures the presence of default physiological systems, global settings,
+ * critical clinical rules, and the initial administrator user if they do not already exist.
  */
 @Component
 @RequiredArgsConstructor

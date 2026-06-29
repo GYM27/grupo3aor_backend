@@ -15,8 +15,6 @@ import java.util.List;
 
 /**
  * Here we handle the business logic for Clinical Scenarios.
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +26,7 @@ public class ClinicalScenarioService {
 
     /**
      * Instantiates and persists a new clinical scenario configuration.
-     * * @param request Inbound structural payload.
+     * @param request Inbound structural payload.
      * @param operatorEmail Identifier of the executing administrator.
      * @param originIp Physical network origin of the request.
      * @return Outbound safe summary of the created resource.
@@ -63,8 +61,8 @@ public class ClinicalScenarioService {
     }
 
     /**
-     * Retrieves all functional, non-deleted clinical scenarios.
-     * * @return Collection of safe scenario summaries.
+     * Retrieves all active, non-deleted clinical scenarios.
+     * @return Collection of safe scenario summaries.
      */
     @Transactional(readOnly = true)
     public List<ClinicalScenarioResponse> getAllActiveScenarios() {
@@ -75,7 +73,7 @@ public class ClinicalScenarioService {
 
     /**
      * Safely executes a logical removal of a target scenario.
-     * * @param id Database identifier of the scenario.
+     * @param id Database identifier of the scenario.
      * @param operatorEmail Administrator issuing the deletion command.
      */
     @Transactional
@@ -116,7 +114,7 @@ public class ClinicalScenarioService {
             log.error("Failed to serialize metrics for scenario update", e);
         }
 
-        // O repository.save(scenario) foi removido. O JPA Dirty Checking fará o update automático.
+        // The repository.save(scenario) was removed. JPA Dirty Checking will automatically perform the update.
 
         return mapToResponse(scenario);
     }

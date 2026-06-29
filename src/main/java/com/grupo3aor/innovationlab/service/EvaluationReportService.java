@@ -43,6 +43,9 @@ import com.grupo3aor.innovationlab.repository.RuleRepository;
 
 @Slf4j
 @Service
+/**
+ * Service responsible for generating and managing evaluation reports.
+ */
 public class EvaluationReportService {
 
     private final EvaluationReportRepository repository;
@@ -73,7 +76,7 @@ public class EvaluationReportService {
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
 
-        // I removed the delete logic here to allow multiple reports per simulation (Relatório de Sessão)
+        // I removed the delete logic here to allow multiple reports per simulation (Session Report)
         
         EvaluationReport report = mapper.toEntity(dto, simulation);
 
@@ -188,7 +191,7 @@ public class EvaluationReportService {
 
                 List<ReportEvent> events = new ArrayList<>();
 
-                // Cores em tons pastel
+                // Pastel colors
                 Color redPastel = new Color(255, 180, 171, 100);
                 Color yellowPastel = new Color(250, 189, 0, 100);
                 Color greenPastel = new Color(129, 201, 149, 100);

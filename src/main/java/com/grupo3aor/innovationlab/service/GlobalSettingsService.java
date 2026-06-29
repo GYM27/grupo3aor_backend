@@ -6,6 +6,9 @@ import com.grupo3aor.innovationlab.repository.GlobalSettingsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service for managing global application settings.
+ */
 @Service
 public class GlobalSettingsService {
 

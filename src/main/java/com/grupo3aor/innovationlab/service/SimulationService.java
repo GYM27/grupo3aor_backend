@@ -252,21 +252,21 @@ public class SimulationService {
                     List<AlertEventDTO> subEvents = new java.util.ArrayList<>();
                     String ruleName = (alert.getRule() != null && alert.getRule().getName() != null && !alert.getRule().getName().isEmpty())
                             ? alert.getRule().getName()
-                            : "Sem Nome";
+                            : "Unnamed";
                     boolean isCritical = alert.getRule() != null && 
                                          alert.getRule().getSeverity() != null && 
                                          alert.getRule().getSeverity().name().equalsIgnoreCase("CRITICO");
                     String severityType = isCritical ? "critical" : "warning";
                     subEvents.add(AlertEventDTO.builder()
                         .timestamp(alert.getTimestamp())
-                        .description("Regra " + ruleName + " acionada (" + String.format("%.1f", alert.getValueAtTrigger()) + ")")
+                        .description("Rule " + ruleName + " triggered (" + String.format("%.1f", alert.getValueAtTrigger()) + ")")
                         .type(severityType)
                         .build());
                         
                     if (alert.getWarningAt() != null) {
                         subEvents.add(AlertEventDTO.builder()
                             .timestamp(alert.getWarningAt())
-                            .description("Regra " + ruleName + " em estabilização")
+                            .description("Rule " + ruleName + " stabilizing")
                             .type("warning")
                             .build());
                     }
@@ -274,7 +274,7 @@ public class SimulationService {
                     if (alert.getResolvedAt() != null) {
                         subEvents.add(AlertEventDTO.builder()
                             .timestamp(alert.getResolvedAt())
-                            .description("Regra " + ruleName + " resolvida")
+                            .description("Rule " + ruleName + " resolved")
                             .type("success")
                             .build());
                     }

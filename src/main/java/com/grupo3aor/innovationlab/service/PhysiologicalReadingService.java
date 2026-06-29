@@ -25,6 +25,9 @@ import java.util.UUID;
 @Slf4j // Adds the Logger (Lombok)
 @RequiredArgsConstructor // Removes the manual constructor
 @Service
+/**
+ * Service for managing physiological readings and telemetry batches.
+ */
 public class PhysiologicalReadingService {
 
     private final PhysiologicalReadingRepository repository;

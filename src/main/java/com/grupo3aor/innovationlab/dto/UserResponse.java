@@ -14,8 +14,6 @@ import lombok.Setter;
  * ensuring that sensitive persistence fields, credential hashes, or internal 
  * security tokens are never exposed over our public network endpoints.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @Getter
 @Setter

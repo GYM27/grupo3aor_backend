@@ -79,7 +79,7 @@ public class RuleService {
             active = false;
         } else if ("Eliminadas".equalsIgnoreCase(status)) {
             deleted = true;
-        } // "Todas" ou outro valor mantém active = null e deleted = false
+        } // "Todas" or other value keeps active = null and deleted = false
 
         org.springframework.data.domain.Page<Rule> rulesPage = ruleRepository.findFilteredRules(name, systemId, active, deleted, pageable);
         
@@ -129,7 +129,7 @@ public class RuleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rule not found with ID: " + ruleId));
 
         if (oldRule.isDeleted()) {
-            throw new IllegalStateException("Esta regra já se encontra arquivada e não pode ser modificada.");
+            throw new IllegalStateException("This rule is already archived and cannot be modified.");
         }
 
         PhysiologicalSystem system = systemRepository.findById(request.getSystemId())
@@ -138,7 +138,7 @@ public class RuleService {
         // Validation for Blood Pressure Limits
         validateBPLimits(request.getExpressionDsl());
 
-        // Passo 1: Arquivar a regra antiga (Soft Delete)
+        // Step 1: Archive the old rule (Soft Delete)
         oldRule.setDeleted(true);
         oldRule.setActive(false);
         oldRule.setUpdatedBy(userEmail);
@@ -146,7 +146,7 @@ public class RuleService {
 
         log.info("[AUDIT] Action: RULE_ARCHIVED | Old Target ID: {} | Operator: {}", ruleId, userEmail);
 
-        // Passo 2: Criar a nova versão da regra (Versioning)
+        // Step 2: Create the new version of the rule (Versioning)
         Rule newRule = Rule.builder()
                 .name(request.getName())
                 .expressionDsl(request.getExpressionDsl())
@@ -174,7 +174,7 @@ public class RuleService {
             RuleCondition condition = mapper.readValue(expressionDsl, RuleCondition.class);
             if ("BP".equalsIgnoreCase(condition.getMetric()) || "Pressão Arterial".equalsIgnoreCase(condition.getMetric())) {
                 if (condition.getActivationThreshold() != null && (condition.getActivationThreshold() < 0 || condition.getActivationThreshold() > 300)) {
-                    throw new IllegalArgumentException("O valor limite para a Pressão Arterial deve estar entre 0 e 300 mmHg.");
+                    throw new IllegalArgumentException("The threshold value for Blood Pressure must be between 0 and 300 mmHg.");
                 }
             }
         } catch (JsonProcessingException e) {

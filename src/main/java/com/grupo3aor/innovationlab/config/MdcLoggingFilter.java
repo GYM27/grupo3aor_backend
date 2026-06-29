@@ -15,8 +15,10 @@ import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * I set up this filter to capture the user's IP and email on every request, 
- * stuffing them into the MDC so Logback can automatically print them in all our logs.
+ * A filter that intercepts every HTTP request to capture the user's IP address
+ * and email (if authenticated), and stores them in the Mapped Diagnostic Context (MDC).
+ * This ensures that these details are automatically included in all application logs
+ * for reliable audit trailing and debugging.
  */
 @Component
 @Slf4j

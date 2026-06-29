@@ -33,8 +33,6 @@ import java.util.UUID;
  * I engineered this component to centralize identity management constraints, manage account
  * registration checks, handle secure email confirmation workflows, and record physical auditing lines.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @Service
 @Slf4j
@@ -49,10 +47,12 @@ public class AuthService {
 
     /**
      * Main constructor mapping core dependencies required for safe authorization lifecycles.
-     * * @param userRepository Core interface abstracting persistent storage engines.
+     * @param userRepository Core interface abstracting persistent storage engines.
      * @param passwordEncoder Cryptographic processing component handling irreversible hashing.
      * @param emailService Mail infrastructure module handling outbound notification links.
      * @param authenticationManager Infrastructure subsystem manager running standard authentication tasks.
+     * @param invitationRepository Repository for managing user invitations.
+     * @param globalSettingsRepository Repository for global system settings.
      */
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService,
         AuthenticationManager authenticationManager, InvitationRepository invitationRepository,
@@ -123,7 +123,7 @@ public class AuthService {
 
     /**
      * Intercepts validation tokens and flips user structural records to an active state.
-     * * @param token Unique cryptographically secure token string received by the client.
+     * @param token Unique cryptographically secure token string received by the client.
      * @throws AccountAlreadyActivatedException If the target token was already consumed or cleared.
      */
     @Transactional
@@ -156,7 +156,7 @@ public class AuthService {
         
         /**
          * Constructs the exception mapping an explicit explanation message.
-         * * @param message Descriptive error tracking data.
+         * @param message Descriptive error tracking data.
          */
         public AccountAlreadyActivatedException(String message) {
             super(message);
@@ -330,7 +330,7 @@ public class AuthService {
             invitation = Invitation.builder()
                     .email(email)
                     .token(token)
-                    .expiresAt(LocalDateTime.now().plusDays(7)) // Convite expira em 7 dias
+                    .expiresAt(LocalDateTime.now().plusDays(7)) // Invitation expires in 7 days
                     .invitedBy(adminEmail)
                     .build();
         }
@@ -373,15 +373,15 @@ public class AuthService {
     }
 
     /**
-     * Valida um token de convite e retorna o email associado.
+     * Validates an invitation token and returns the associated email.
      */
     @Transactional(readOnly = true)
     public String getInvitationEmailByToken(String token) {
         Invitation invitation = invitationRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou não encontrado."));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or not found invitation."));
         
         if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Este convite já expirou.");
+            throw new IllegalArgumentException("This invitation has already expired.");
         }
         
         return invitation.getEmail();
@@ -409,15 +409,15 @@ public class AuthService {
                 .lastName(request.getLastName())
                 .email(invitation.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .perfil(PerfilEnum.USER) // O perfil base
-                .accountActivated(true) // Conta já ativada porque o convite serve de validação de email
+                .perfil(PerfilEnum.USER) // The base profile
+                .accountActivated(true) // Account already activated because the invitation serves as email validation
                 .createdBy("INVITATION_FLOW")
                 .originIp(ipAddress)
                 .build();
 
         userRepository.save(newUser);
         
-        // Apaga o convite para que o link não possa ser usado novamente
+        // Deletes the invitation so that the link cannot be used again
         invitationRepository.delete(invitation);
         
         log.info("[AUDIT] Action: REGISTRATION_COMPLETED_VIA_INVITE | User: {} | Origin IP: {}", newUser.getEmail(), ipAddress);

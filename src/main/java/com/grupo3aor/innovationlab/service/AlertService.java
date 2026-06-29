@@ -18,6 +18,9 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Service for managing alerts.
+ */
 @Service
 @Slf4j
 public class AlertService {

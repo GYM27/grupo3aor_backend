@@ -13,6 +13,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+/**
+ * Aspect responsible for intercepting methods annotated with {@link AuditableAction}.
+ * It captures execution context (user, IP address, method signature) and persists
+ * an audit log entry in the database.
+ */
 @Aspect
 @Component
 @RequiredArgsConstructor
@@ -21,6 +26,13 @@ public class AuditAspect {
 
     private final AuditLogRepository auditLogRepository;
 
+    /**
+     * Intercepts successful method executions annotated with {@link AuditableAction}
+     * and logs the corresponding audit activity.
+     *
+     * @param joinPoint       the join point representing the intercepted method execution
+     * @param auditableAction the annotation containing the action description
+     */
     @AfterReturning("@annotation(auditableAction)")
     public void logAuditActivity(JoinPoint joinPoint, AuditableAction auditableAction) {
         try {

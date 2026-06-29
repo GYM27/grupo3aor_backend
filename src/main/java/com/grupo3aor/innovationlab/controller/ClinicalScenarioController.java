@@ -23,8 +23,6 @@ import java.util.List;
  * I designed this controller as a safe HTTP access point, locking administrative mutations 
  * behind strict role checks while exposing lookup queries to active simulator operators.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/clinical-scenarios")
@@ -53,8 +51,8 @@ public class ClinicalScenarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-        /**
-     * Endpoint que recebe um ficheiro JSON e transforma-o num Cenário na BD.
+    /**
+     * Endpoint that receives a JSON file and transforms it into a Scenario in the DB.
      */
     @PostMapping("/upload")
     @PreAuthorize("isAuthenticated()")
@@ -67,19 +65,19 @@ public class ClinicalScenarioController {
             if (file.isEmpty() || !("application/json".equals(file.getContentType()))) {
                 return ResponseEntity.badRequest().body("Ficheiro inválido. Apenas ficheiros JSON são permitidos.");
             }
-            if (file.getSize() > 5 * 1024 * 1024) { // Limite de 5MB
+            if (file.getSize() > 5 * 1024 * 1024) { // 5MB limit
                 return ResponseEntity.badRequest().body("O ficheiro é demasiado grande (limite: 5MB).");
             }
 
-            // 1. A Magia do Jackson: Lê o input stream do ficheiro para o DTO
+            // 1. The Magic of Jackson: Reads the file input stream into the DTO
             ClinicalScenarioRequest request = objectMapper.readValue(file.getInputStream(), ClinicalScenarioRequest.class);
 
-            // 2. Usa a lógica existente para criar na BD de forma segura
+            // 2. Uses existing logic to create safely in the DB
             String operatorEmail = authentication.getName();
             String originIp = httpRequest.getRemoteAddr();
             ClinicalScenarioResponse response = scenarioService.createScenario(request, operatorEmail, originIp);
 
-            // 3. Retorna o Objeto criado (que já tem o ID da base de dados!)
+            // 3. Returns the created Object (which already has the database ID!)
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
         } catch (Exception e) {

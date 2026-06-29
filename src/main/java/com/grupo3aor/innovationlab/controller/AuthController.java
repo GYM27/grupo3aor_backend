@@ -29,8 +29,6 @@ import java.util.Optional;
  * handle cross-origin credential policies, extract incoming remote client network metadata,
  * and coordinate early authentication gatekeeping checks.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -165,8 +163,8 @@ public class AuthController {
         }
     }
 
-        /**
-     * Completa o registo a partir de um link de convite.
+    /**
+     * Completes the registration process using a valid invitation link.
      */
     @PostMapping("/accept-invite")
     public ResponseEntity<?> acceptInvite(@Valid @RequestBody com.grupo3aor.innovationlab.dto.CompleteRegistrationRequest request, HttpServletRequest httpRequest) {
@@ -179,7 +177,7 @@ public class AuthController {
         }
     }
     /**
-     * Recupera o email associado a um convite válido para auto-preenchimento no Frontend.
+     * Retrieves the email associated with a valid invitation for auto-filling on the Frontend.
      */
     @GetMapping("/invitation-email")
     public ResponseEntity<?> getInvitationEmail(@RequestParam("token") String token) {

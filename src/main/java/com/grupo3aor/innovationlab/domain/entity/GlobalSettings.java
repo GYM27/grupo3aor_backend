@@ -11,6 +11,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 
+/**
+ * JPA entity representing the global application settings.
+ * Ensures only a single configuration record exists in the system.
+ */
 @Entity
 @Table(name = "global_settings")
 @Getter
@@ -21,12 +25,12 @@ import lombok.Setter;
 public class GlobalSettings extends Auditable {
 
     @Id
-    private Long id ; // Força a ser sempre o ID 1 na BD
+    private Long id ; // Forces it to always be ID 1 in the DB
 
     @Column(name = "session_timeout_minutes")
-    private Integer sessionTimeoutMinutes; // Mapeia o Limite de Inatividade
+    private Integer sessionTimeoutMinutes; // Maps the Inactivity Limit
 
     @Column(name = "human_body_enabled")
-    private Boolean isHumanBodyEnabled; // Mapeia a visualização do corpo humano na dashboard
+    private Boolean isHumanBodyEnabled; // Maps the human body visualization on the dashboard
 
 }

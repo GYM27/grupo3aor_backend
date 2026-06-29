@@ -17,13 +17,17 @@ import org.springframework.data.domain.Page;
 
 import java.util.Map;
 
+/**
+ * REST controller for managing user accounts and roles.
+ * Provides endpoints to list, invite, update, and manage user lifecycles (soft-delete/activate).
+ */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
-    private final AuthService authService; // Precisamos do AuthService injetado
+    private final AuthService authService; // We need the injected AuthService
 
     /**
      * Lists all active users.

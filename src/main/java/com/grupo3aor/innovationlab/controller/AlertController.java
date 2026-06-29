@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * REST controller for managing system alerts.
+ * Provides endpoints for creating alerts, resolving their status, and retrieving alerts by simulation.
+ */
 @RestController
 @RequestMapping("/api/alerts")
 @PreAuthorize("isAuthenticated()")

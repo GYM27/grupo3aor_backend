@@ -6,15 +6,21 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to mark methods that perform actions requiring an audit log.
- * The AuditAspect will intercept these methods and log the action, the user, and the IP address.
+ * Custom annotation used to mark methods that perform sensitive actions
+ * requiring an audit log entry.
+ * <p>
+ * The {@link AuditAspect} intercepts methods annotated with this annotation
+ * and automatically records the action description, the authenticated user's email,
+ * the origin IP address, and the timestamp of the execution.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AuditableAction {
     /**
-     * The name or description of the action being performed (e.g., "DELETE_SCENARIO").
-     * @return the action description
+     * Defines the name or description of the action being performed.
+     * This value will be stored in the audit log.
+     *
+     * @return the description of the action (e.g., "CREATE_PROJECT", "DELETE_SCENARIO")
      */
     String action();
 }

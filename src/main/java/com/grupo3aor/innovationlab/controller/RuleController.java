@@ -17,9 +17,7 @@ import java.util.UUID;
 
 /**
  * REST controller for managing engine rules.
- * <p>
- * I added explicit role protection here so only authorized people can change the simulation engine.
- * </p>
+ * Provides protected endpoints to create, retrieve, update, and delete clinical rules used by the simulation engine.
  */
 @RestController
 @RequestMapping("/api/rules")

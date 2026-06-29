@@ -20,28 +20,28 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     /**
      * Retrieves a user matching a specific email address.
-     * * @param email Target identifier string.
+     * @param email Target identifier string.
      * @return An Optional wrapper surrounding the discovered User.
      */
     Optional<User> findByEmail(String email);
     
     /**
      * Locates a user record based on an active email token.
-     * * @param token Cryptographically safe registration token string.
+     * @param token Cryptographically safe registration token string.
      * @return An Optional entity wrapper.
      */
     Optional<User> findByActivationToken(String token);
     
     /**
      * Locates a user record based on a password reset token.
-     * * @param token Cryptographically safe reset token string.
+     * @param token Cryptographically safe reset token string.
      * @return An Optional entity wrapper.
      */
     Optional<User> findByResetPasswordToken(String token);
     
     /**
      * Gathers all operational user records while filtering out logically removed entries.
-     * * @return Collection of active system users.
+     * @return Collection of active system users.
      */
     // I introduced this distinct query method to bypass soft-deleted accounts during 
     // our everyday core business flows and authentication checks.
@@ -74,7 +74,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * Added this quick validation method to check the prior existence
      * of an email during the registration flow.
-     * * This approach performs an optimized database check,
+     * This approach performs an optimized database check,
      * returning a simple boolean value. This avoids loading the entire
      * entity into server memory just to see if the email is taken.
      *

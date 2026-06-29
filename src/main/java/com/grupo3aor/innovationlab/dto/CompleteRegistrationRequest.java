@@ -3,6 +3,9 @@ package com.grupo3aor.innovationlab.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+/**
+ * Request payload for completing user registration after receiving an invitation.
+ */
 @Data
 public class CompleteRegistrationRequest {
 

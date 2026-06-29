@@ -19,14 +19,14 @@ public class ClinicalFormatter {
 
     /**
      * Formats a strictly factual rationale string.
-     * Output format: '[Parâmetro] estava [acima/abaixo] do limite definido ([Valor do Limite]). Valor observado: [Valor Observado].'
+     * Output format: '[Parameter] was [above/below] the defined threshold ([Threshold Value]). Observed value: [Observed Value].'
      *
      * @param alert The triggered alert
      * @return Formatted analytical rationale
      */
     public String formatRationale(Alert alert) {
         if (alert == null || alert.getRule() == null) {
-            return "Ativação baseada nas regras configuradas.";
+            return "Activation based on configured rules.";
         }
 
         RuleCondition condition = null;
@@ -45,22 +45,22 @@ public class ClinicalFormatter {
         }
 
         if (condition != null) {
-            String verb = "violou a condição";
-            if ("<".equals(condition.getOperator()) || "<=".equals(condition.getOperator())) verb = "abaixo";
-            else if (">".equals(condition.getOperator()) || ">=".equals(condition.getOperator())) verb = "acima";
-            else if ("==".equals(condition.getOperator())) verb = "igual ao";
+            String verb = "violated the condition";
+            if ("<".equals(condition.getOperator()) || "<=".equals(condition.getOperator())) verb = "below";
+            else if (">".equals(condition.getOperator()) || ">=".equals(condition.getOperator())) verb = "above";
+            else if ("==".equals(condition.getOperator())) verb = "equal to";
             
             double threshold = condition.getActivationThreshold() != null ? condition.getActivationThreshold() : 0.0;
             double observed = alert.getValueAtTrigger() != null ? alert.getValueAtTrigger() : 0.0;
             
             String unit = getUnitForMetric(condition.getMetric());
             
-            // Format strictly to: '[Parâmetro] estava [acima/abaixo] do limite definido ([Valor do Limite]). Valor observado: [Valor Observado].'
-            return String.format(Locale.US, "O parâmetro %s estava %s do limite definido (%.1f%s). Valor observado: %.1f%s.",
+            // Format strictly to: '[Parameter] was [above/below] the defined threshold ([Threshold Value]). Observed value: [Observed Value].'
+            return String.format(Locale.US, "The parameter %s was %s the defined threshold (%.1f%s). Observed value: %.1f%s.",
                     condition.getMetric(), verb, threshold, unit, observed, unit);
         }
 
-        return "Ativação baseada nas regras configuradas. Valor observado: " + String.format(Locale.US, "%.1f", alert.getValueAtTrigger());
+        return "Activation based on configured rules. Observed value: " + String.format(Locale.US, "%.1f", alert.getValueAtTrigger());
     }
     
     private String getUnitForMetric(String metric) {

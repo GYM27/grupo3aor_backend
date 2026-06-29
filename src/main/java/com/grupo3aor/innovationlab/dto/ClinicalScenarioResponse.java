@@ -10,8 +10,6 @@ import java.time.LocalDateTime;
  * underlying physical entity, exposing only the exact variables required by 
  * the frontend UI interfaces.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
- * @version 1.0
  */
 @Getter
 @Setter
