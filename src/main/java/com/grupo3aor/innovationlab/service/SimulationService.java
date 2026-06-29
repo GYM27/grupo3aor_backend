@@ -113,10 +113,39 @@ public class SimulationService {
      * Grabs the entire simulation execution history.
      */
     @Transactional(readOnly = true)
-    public List<SimulationResponse> getHistory() {
-        return simulationRepository.findAll().stream()
+    public List<SimulationResponse> getHistory(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
+
+        List<Simulation> simulations;
+        if (user.getPerfil() == com.grupo3aor.innovationlab.domain.enums.PerfilEnum.MANAGER || 
+            user.getPerfil() == com.grupo3aor.innovationlab.domain.enums.PerfilEnum.ADMIN) {
+            simulations = simulationRepository.findAll();
+        } else {
+            simulations = simulationRepository.findByUserOrReportCreator(user, userEmail);
+        }
+
+        return simulations.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SimulationResponse> getActiveSimulations() {
+        return simulationRepository.findAllByStatusIn(List.of(
+                SimulationStatus.INICIADA, 
+                SimulationStatus.EM_CURSO))
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isSimulationActive(UUID simulationId) {
+        return simulationRepository.findById(simulationId)
+                .map(sim -> sim.getStatus() == SimulationStatus.INICIADA || 
+                            sim.getStatus() == SimulationStatus.EM_CURSO)
+                .orElse(false);
     }
 
     /**

@@ -180,6 +180,7 @@ async function runDemo() {
     // Vamos começar na linha 1 (ignorar cabeçalho).
     let i = 1;
     let seconds = 0;
+    const scriptStartTime = Date.now();
 
     while (i < lines.length) {
         const line = lines[i].trim();
@@ -222,19 +223,47 @@ async function runDemo() {
             { simulationId, handle: "ArterialBloodPH", unit: "unit", value: ph, timestamp: new Date().toISOString() }
         ];
 
-        for (const metric of metrics) {
-            await fetch(`${BASE_URL}/readings/stream`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(metric)
-            }).catch(() => {});
+        let isSimulationClosed = false;
+
+        const res = await fetch(`${BASE_URL}/readings/batch`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(metrics)
+        }).catch(e => { return { ok: false, status: 500 }; });
+
+        if (!res.ok && (res.status === 400 || res.status === 500)) {
+            isSimulationClosed = true;
         }
 
-        process.stdout.write(`⏱️ Tempo da Simulação: ${time.toFixed(1)}s | HR: ${hr.toFixed(1)} bpm | SPO2: ${spo2.toFixed(1)}% | RR: ${rr.toFixed(1)} \r`);
+        if (isSimulationClosed) {
+            console.log("\n⚠️ Simulação terminada no servidor pelo Dashboard. A criar nova sessão Limpa...");
+            const simRes = await fetch(`${BASE_URL}/simulations/start`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ scenarioId: scenarioId })
+            });
+            
+            if (simRes.ok) {
+                const simulation = await simRes.json();
+                simulationId = simulation.id;
+                console.log(`-> NOVA Simulação LIVE criada! ID: ${simulationId}\n`);
+                // Não fazemos continue, apenas atualizamos o ID. A métrica atual perde-se, mas o loop avança normalmente.
+            } else {
+                console.error("Erro crítico ao recriar simulação.");
+                break;
+            }
+        } else {
+            process.stdout.write(`⏱️ Tempo da Simulação: ${time.toFixed(1)}s | HR: ${hr.toFixed(1)} bpm | SPO2: ${spo2.toFixed(1)}% | RR: ${rr.toFixed(1)} \r`);
+        }
         
         // Pular 50 linhas (0.02s * 50 = 1s de simulação)
         i += 50;
-        await sleep(1000); // 1 segundo na vida real
+        
+        // Drift management
+        const expectedTime = seconds * 1000;
+        const actualTime = Date.now() - scriptStartTime;
+        const drift = actualTime - expectedTime;
+        await sleep(Math.max(0, 1000 - drift));
     }
     
     console.log("\nFim do ficheiro alcançado. O Stream terminou.");

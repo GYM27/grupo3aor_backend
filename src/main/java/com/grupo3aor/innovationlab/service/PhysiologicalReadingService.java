@@ -3,6 +3,7 @@ package com.grupo3aor.innovationlab.service;
 import com.grupo3aor.innovationlab.domain.entity.PhysiologicalReading;
 import com.grupo3aor.innovationlab.domain.entity.Simulation;
 import com.grupo3aor.innovationlab.dto.PhysiologicalReadingDTO;
+import com.grupo3aor.innovationlab.domain.enums.SimulationStatus;
 import com.grupo3aor.innovationlab.exception.ResourceNotFoundException;
 import com.grupo3aor.innovationlab.mapper.SimulationMapper;
 import com.grupo3aor.innovationlab.repository.PhysiologicalReadingRepository;
@@ -37,6 +38,11 @@ public class PhysiologicalReadingService {
     public PhysiologicalReadingDTO createReading(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
+
+        if (simulation.getStatus() == com.grupo3aor.innovationlab.domain.enums.SimulationStatus.FINALIZADA || 
+            simulation.getStatus() == com.grupo3aor.innovationlab.domain.enums.SimulationStatus.CANCELADA) {
+            throw new IllegalStateException("Cannot add readings to a finalized or canceled simulation.");
+        }
 
         PhysiologicalReading reading = mapper.toEntity(dto, simulation);
 
@@ -97,6 +103,11 @@ public class PhysiologicalReadingService {
                 dto.getSimulationId(), 
                 this::getSimulationOrThrow
             );
+
+            if (simulation.getStatus() == com.grupo3aor.innovationlab.domain.enums.SimulationStatus.FINALIZADA || 
+                simulation.getStatus() == com.grupo3aor.innovationlab.domain.enums.SimulationStatus.CANCELADA) {
+                throw new IllegalStateException("Cannot add readings to a finalized or canceled simulation.");
+            }
             
             PhysiologicalReading reading = mapper.toEntity(dto, simulation);
             reading.setCreatedBy(userEmail);
@@ -115,11 +126,17 @@ public class PhysiologicalReadingService {
             log.error("Failed to evaluate rules for batch: {}", e.getMessage(), e);
         }
 
-        // 4. Do NOT save the 52,000 readings into the database!
-        // We only needed them in RAM to evaluate the rules and generate the Alerts.
-        // Saving 52,000 rows takes 1.5 minutes and causes massive DB locking ("pending" requests).
-        // Since the frontend replays BioGears locally, it never fetches these readings.
-        // We just return the DTOs (with null IDs) so the frontend is happy.
+        // 4. Se a batch for pequena (Live Stream micro-batch), guardamos e emitimos por WebSocket.
+        // Se for gigante (CSV 52k linhas), saltamos para evitar bloquear a Base de Dados e a RAM.
+        if (entitiesToSave.size() < 1000) {
+            List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
+            for (PhysiologicalReading savedReading : savedReadings) {
+                PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
+                messagingTemplate.convertAndSend("/topic/simulations/" + savedDto.getSimulationId() + "/readings", savedDto);
+            }
+        }
+
+        // We just return the DTOs (with null IDs for large batches) so the frontend is happy.
             return entitiesToSave.stream()
                     .map(mapper::toDto)
                     .toList();
@@ -133,6 +150,14 @@ public class PhysiologicalReadingService {
         return repository.findBySimulation_Id(simulationId).stream()
                 .map(mapper::toDto)
                 .toList(); // Cleaner (Java 16+)
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isSimulationActive(UUID simulationId) {
+        return simulationRepository.findById(simulationId)
+                .map(sim -> sim.getStatus() == SimulationStatus.INICIADA || 
+                            sim.getStatus() == SimulationStatus.EM_CURSO)
+                .orElse(false);
     }
 
     // --- Helper Methods to keep the code DRY (Don't Repeat Yourself) ---

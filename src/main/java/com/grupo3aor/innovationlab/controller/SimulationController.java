@@ -50,8 +50,17 @@ public class SimulationController {
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<SimulationResponse>> getHistory() {
-        return ResponseEntity.ok(simulationService.getHistory());
+    public ResponseEntity<List<SimulationResponse>> getHistory(Authentication authentication) {
+        return ResponseEntity.ok(simulationService.getHistory(authentication.getName()));
+    }
+
+    /**
+     * Fetches all currently active simulations (INICIADA or EM_CURSO) across the system.
+     */
+    @GetMapping("/active")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<SimulationResponse>> getActiveSimulations() {
+        return ResponseEntity.ok(simulationService.getActiveSimulations());
     }
 
     /**

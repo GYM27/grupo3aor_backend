@@ -315,9 +315,10 @@ class SimulationServiceTest {
     // =========================================================
 
     @Test
-    @DisplayName("getHistory: deve retornar lista com todas as simulações")
-    void getHistory_shouldReturnAllSimulations() {
+    @DisplayName("getHistory: deve retornar lista com simulações do utilizador")
+    void getHistory_shouldReturnUserSimulations() {
         // ARRANGE
+        mockUser.setPerfil(com.grupo3aor.innovationlab.domain.enums.PerfilEnum.USER);
         Simulation sim1 = Simulation.builder()
                 .id(UUID.randomUUID())
                 .scenario(mockScenario)
@@ -335,10 +336,11 @@ class SimulationServiceTest {
                 .endedAt(LocalDateTime.now().minusMinutes(10))
                 .build();
 
-        when(simulationRepository.findAll()).thenReturn(List.of(sim1, sim2));
+        when(userRepository.findByEmail("nurse@vitalsim.pt")).thenReturn(Optional.of(mockUser));
+        when(simulationRepository.findByUserOrReportCreator(mockUser, "nurse@vitalsim.pt")).thenReturn(List.of(sim1, sim2));
 
         // ACT
-        List<SimulationResponse> result = simulationService.getHistory();
+        List<SimulationResponse> result = simulationService.getHistory("nurse@vitalsim.pt");
 
         // ASSERT
         assertThat(result).hasSize(2);
@@ -349,9 +351,11 @@ class SimulationServiceTest {
     @Test
     @DisplayName("getHistory: deve retornar lista vazia quando não há simulações")
     void getHistory_shouldReturnEmptyList_whenNoSimulations() {
-        when(simulationRepository.findAll()).thenReturn(List.of());
+        mockUser.setPerfil(com.grupo3aor.innovationlab.domain.enums.PerfilEnum.USER);
+        when(userRepository.findByEmail("nurse@vitalsim.pt")).thenReturn(Optional.of(mockUser));
+        when(simulationRepository.findByUserOrReportCreator(mockUser, "nurse@vitalsim.pt")).thenReturn(List.of());
 
-        List<SimulationResponse> result = simulationService.getHistory();
+        List<SimulationResponse> result = simulationService.getHistory("nurse@vitalsim.pt");
 
         assertThat(result).isEmpty();
     }
