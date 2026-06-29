@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
  * ensuring our application can dispatch operational notifications (like account activations)
  * securely and reliably.
  * </p>
- * @version 1.0
  */
 @Service
 @Slf4j

@@ -16,7 +16,6 @@ import java.util.Collections;
  * connecting our security subsystem to our persistence layer. This setup allows the runtime 
  * engine to locate profile configurations and load operational privileges during login requests.
  * </p>
- * @version 1.0
  */
 @Service
 public class AuthUserLoader implements UserDetailsService {

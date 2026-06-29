@@ -16,7 +16,6 @@ import org.hibernate.annotations.SQLRestriction;
  * I refactored it to extend {@link Auditable}, eliminating duplicated audit columns
  * and guaranteeing structural consistency across the entire domain model.
  * </p>
- * @version 1.0
  */
 @Entity
 @Table(name = "clinical_scenarios")

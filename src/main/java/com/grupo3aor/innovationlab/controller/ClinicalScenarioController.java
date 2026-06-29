@@ -23,7 +23,6 @@ import java.util.List;
  * I designed this controller as a safe HTTP access point, locking administrative mutations 
  * behind strict role checks while exposing lookup queries to active simulator operators.
  * </p>
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/clinical-scenarios")

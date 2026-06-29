@@ -21,7 +21,6 @@ import java.util.List;
  * I architected this controller to act as a strict perimeter gateway, authorizing requests
  * via Spring Security interceptors and delegating heavy processing to the underlying services.
  * </p>
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/physiological-systems")

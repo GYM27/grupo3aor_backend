@@ -13,7 +13,6 @@ import java.util.Optional;
  * I engineered this abstraction layer to manage clinical configuration access boundaries,
  * keeping separate tracking methods for active operational workflows and logical recycling dashboards.
  * </p>
- * @version 1.0
  */
 @Repository
 public interface ClinicalScenarioRepository extends JpaRepository<ClinicalScenario, Long> {

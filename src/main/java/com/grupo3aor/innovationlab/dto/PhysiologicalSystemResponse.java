@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
  * necessary presentation fields from the persistence layer while intentionally 
  * masking sensitive infrastructure data like origin IPs or logical delete flags.
  * </p>
- * @version 1.0
  */
 @Getter
 @Setter

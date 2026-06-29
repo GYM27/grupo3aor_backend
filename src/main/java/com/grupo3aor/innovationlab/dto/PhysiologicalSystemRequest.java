@@ -11,7 +11,6 @@ import lombok.*;
  * ensuring that clients can only submit the exact structural data required 
  * for system creation, leaving auditing and security flags untouched.
  * </p>
- * @version 1.0
  */
 @Getter
 @Setter

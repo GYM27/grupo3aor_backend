@@ -13,7 +13,6 @@ import java.util.Optional;
  * I engineered this abstraction layer to manage physiological system boundaries,
  * keeping separate tracking methods for active operational workflows and logical recycling dashboards.
  * </p>
- * @version 1.0
  */
 @Repository
 public interface PhysiologicalSystemRepository extends JpaRepository<PhysiologicalSystem, Long> {

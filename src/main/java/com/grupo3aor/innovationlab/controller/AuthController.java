@@ -29,7 +29,6 @@ import java.util.Optional;
  * handle cross-origin credential policies, extract incoming remote client network metadata,
  * and coordinate early authentication gatekeeping checks.
  * </p>
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/auth")

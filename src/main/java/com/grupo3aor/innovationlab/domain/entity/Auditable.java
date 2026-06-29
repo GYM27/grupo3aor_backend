@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
  * I also switched to {@code @SuperBuilder} to allow child entities to set inherited audit
  * fields directly through their builders.
  * </p>
- * @version 1.0
  */
 @MappedSuperclass
 @Getter

@@ -15,7 +15,6 @@ import java.util.List;
 
 /**
  * Here we handle the business logic for Clinical Scenarios.
- * @version 1.0
  */
 @Service
 @RequiredArgsConstructor

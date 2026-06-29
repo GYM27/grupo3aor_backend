@@ -33,7 +33,6 @@ import java.util.UUID;
  * I engineered this component to centralize identity management constraints, manage account
  * registration checks, handle secure email confirmation workflows, and record physical auditing lines.
  * </p>
- * @version 1.0
  */
 @Service
 @Slf4j

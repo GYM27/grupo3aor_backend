@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
  * underlying physical entity, exposing only the exact variables required by 
  * the frontend UI interfaces.
  * </p>
- * @version 1.0
  */
 @Getter
 @Setter
