@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * I implemented this service to isolate transaction boundaries and business validation 
  * rules, preventing the REST controllers from directly manipulating persistent data.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Service
@@ -31,7 +31,7 @@ public class PhysiologicalSystemService {
 
     /**
      * Instantiates and persists a new physiological system configuration.
-     * * @param request Inbound structural payload.
+     * @param request Inbound structural payload.
      * @param operatorEmail Identifier of the executing administrator.
      * @param originIp Physical network origin of the request.
      * @return Outbound safe summary of the created resource.
@@ -65,7 +65,7 @@ public class PhysiologicalSystemService {
 
     /**
      * Retrieves all functional, non-deleted physiological systems.
-     * * @return Collection of safe system summaries.
+     * @return Collection of safe system summaries.
      */
     @Transactional(readOnly = true)
     public List<PhysiologicalSystemResponse> getAllActiveSystems() {
@@ -78,7 +78,7 @@ public class PhysiologicalSystemService {
 
     /**
      * Safely executes a logical removal of a target system.
-     * * @param id Database identifier of the system.
+     * @param id Database identifier of the system.
      * @param operatorEmail Administrator issuing the deletion command.
      */
     @Transactional

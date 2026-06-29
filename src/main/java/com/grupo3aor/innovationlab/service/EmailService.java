@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
  * ensuring our application can dispatch operational notifications (like account activations)
  * securely and reliably.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Service
@@ -24,7 +24,7 @@ public class EmailService {
 
     /**
      * Direct constructor injecting the Spring Mail transport dependency.
-     * * @param mailSender Configured SMTP mail sender bean.
+     * @param mailSender Configured SMTP mail sender bean.
      */
     public EmailService(JavaMailSender mailSender){
         // I opted for constructor injection to guarantee the mail sender is fully 
@@ -120,18 +120,18 @@ public class EmailService {
     }
 
         public void sendInvitationEmail(String targetEmail, String token) {
-        // Encaminhamos para uma nova página de registo no Frontend
+        // Redirect to a new registration page on the Frontend
         String fullUrl = "http://localhost:5173/register?token=" + token;
 
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(targetEmail);
-        msg.setSubject("Innovation Lab - Convite de Registo");
+        msg.setSubject("Innovation Lab - Registration Invite");
 
-        String body = "Olá,\n\n" +
-                      "Foste convidado para te juntares ao Innovation Lab! " + 
-                      "Clica no link abaixo para completares o teu registo e criares a tua conta: " + 
+        String body = "Hello,\n\n" +
+                      "You have been invited to join the Innovation Lab! " + 
+                      "Click the link below to complete your registration and create your account: " + 
                       "\n\n" + fullUrl + "\n\n" +
-                      "Melhores cumprimentos,\nA Equipa Innovation Lab.";
+                      "Best regards,\nThe Innovation Lab Team.";
 
         msg.setText(body);
 

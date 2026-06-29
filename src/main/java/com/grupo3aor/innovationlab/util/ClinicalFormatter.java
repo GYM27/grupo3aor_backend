@@ -62,13 +62,13 @@ public class ClinicalFormatter {
             case "BP":
                 return String.valueOf(Math.round(value));
             case "SPO2":
-                // Em BioGears, SpO2 pode vir como 0.95. Se for < 1.0, escala para %.
+                // In BioGears, SpO2 might come as 0.95. If < 1.0, scale to %.
                 double scaledSpO2 = value <= 1.0 ? value * 100 : value;
                 return String.valueOf(Math.round(scaledSpO2));
             case "ARTERIALBLOODPH":
             case "TEMP":
             case "TEMPERATURE":
-                // 2 casas decimais para pH e Temperatura
+                // 2 decimal places for pH and Temperature
                 return String.format(java.util.Locale.US, "%.2f", value);
             default:
                 return formatNumber(value, metric);

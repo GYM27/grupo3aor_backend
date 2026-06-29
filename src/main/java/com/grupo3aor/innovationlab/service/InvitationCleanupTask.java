@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /**
- * Tarefa agendada para manter a base de dados limpa, removendo convites que já expiraram.
+ * Scheduled task to keep the database clean by removing expired invitations.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,20 +20,20 @@ public class InvitationCleanupTask {
     private final InvitationRepository invitationRepository;
 
     /**
-     * Executa todos os dias à meia-noite (00:00:00).
-     * O formato Cron é: Segundos Minutos Horas Dia-do-Mês Mês Dia-da-Semana
+     * Executes every day at midnight (00:00:00).
+     * Cron format is: Seconds Minutes Hours Day-of-Month Month Day-of-Week
      */
     @Scheduled(cron = "0 0 0 * * ?")
     @Transactional
     public void cleanupExpiredInvitations() {
-        log.info("[MAINTENANCE] Iniciando limpeza de convites expirados...");
+        log.info("[MAINTENANCE] Starting cleanup of expired invitations...");
         
         int deletedCount = invitationRepository.deleteByExpiresAtBefore(LocalDateTime.now());
         
         if (deletedCount > 0) {
-            log.info("[MAINTENANCE] Limpeza concluída: {} convite(s) expirado(s) removido(s) da base de dados.", deletedCount);
+            log.info("[MAINTENANCE] Cleanup completed: {} expired invitation(s) removed from the database.", deletedCount);
         } else {
-            log.info("[MAINTENANCE] Limpeza concluída: Nenhum convite expirado encontrado.");
+            log.info("[MAINTENANCE] Cleanup completed: No expired invitations found.");
         }
     }
 }
