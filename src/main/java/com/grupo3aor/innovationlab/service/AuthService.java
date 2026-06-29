@@ -19,6 +19,9 @@ import com.grupo3aor.innovationlab.domain.entity.GlobalSettings;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.grupo3aor.innovationlab.audit.AuditableAction;
+import com.grupo3aor.innovationlab.domain.entity.Invitation;
+import java.util.List;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -316,23 +319,57 @@ public class AuthService {
             throw new IllegalArgumentException("This email is already registered in the system.");
         }
         
-        if (invitationRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("An invitation has already been sent to this email.");
-        }
-
+        Invitation invitation = invitationRepository.findByEmail(email).orElse(null);
         String token = java.util.UUID.randomUUID().toString();
 
-        com.grupo3aor.innovationlab.domain.entity.Invitation invitation = com.grupo3aor.innovationlab.domain.entity.Invitation.builder()
-                .email(email)
-                .token(token)
-                .expiresAt(LocalDateTime.now().plusDays(7)) // Convite expira em 7 dias
-                .invitedBy(adminEmail)
-                .build();
+        if (invitation != null) {
+            invitation.setToken(token);
+            invitation.setExpiresAt(LocalDateTime.now().plusDays(7));
+            invitation.setInvitedBy(adminEmail);
+        } else {
+            invitation = Invitation.builder()
+                    .email(email)
+                    .token(token)
+                    .expiresAt(LocalDateTime.now().plusDays(7)) // Convite expira em 7 dias
+                    .invitedBy(adminEmail)
+                    .build();
+        }
 
         invitationRepository.save(invitation);
 
         emailService.sendInvitationEmail(email, token);
         log.info("[AUDIT] Action: USER_INVITED | Target Email: {} | Operator: {}", email, adminEmail);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Invitation> getAllInvitations() {
+        return invitationRepository.findAll();
+    }
+
+    @Transactional
+    @AuditableAction(action="RESEND_INVITATION")
+    public void resendInvitation(String email, String adminEmail) {
+        Invitation invitation = invitationRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No pending invitation found for this email."));
+
+        String token = java.util.UUID.randomUUID().toString();
+        invitation.setToken(token);
+        invitation.setExpiresAt(LocalDateTime.now().plusDays(7));
+        invitation.setInvitedBy(adminEmail);
+
+        invitationRepository.save(invitation);
+        emailService.sendInvitationEmail(email, token);
+        log.info("[AUDIT] Action: INVITATION_RESENT | Target Email: {} | Operator: {}", email, adminEmail);
+    }
+
+    @Transactional
+    @AuditableAction(action="DELETE_INVITATION")
+    public void deleteInvitation(String email) {
+        if (!invitationRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("No pending invitation found for this email.");
+        }
+        invitationRepository.deleteByEmail(email);
+        log.info("[AUDIT] Action: INVITATION_DELETED | Target Email: {}", email);
     }
 
         @Transactional

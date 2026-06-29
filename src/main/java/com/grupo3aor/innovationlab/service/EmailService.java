@@ -140,6 +140,7 @@ public class EmailService {
             log.info("[EMAIL] Invitation email dispatched to: {}", targetEmail);
         } catch (MailException e) {
             log.warn("[EMAIL_WARNING] Failed to send invitation email to: {} | Cause: {}", targetEmail, e.getMessage());
+            throw new RuntimeException("Failed to send invitation email. Please check the email server configuration.", e);
         }
     }
 
