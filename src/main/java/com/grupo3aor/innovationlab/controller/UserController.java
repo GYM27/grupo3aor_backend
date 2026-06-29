@@ -133,6 +133,8 @@ public class UserController {
             return ResponseEntity.ok(Map.of("message", "User invited successfully. A password reset email has been sent."));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 }
