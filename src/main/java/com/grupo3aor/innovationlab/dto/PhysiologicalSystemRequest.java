@@ -11,7 +11,7 @@ import lombok.*;
  * ensuring that clients can only submit the exact structural data required 
  * for system creation, leaving auditing and security flags untouched.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Getter
