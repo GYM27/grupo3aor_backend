@@ -9,20 +9,23 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * Configuration class to enable and manage asynchronous operations.
+ * Configuration class that enables and configures asynchronous execution support.
+ * It defines custom thread pools for handling background tasks and high-throughput operations.
  */
 @Configuration
 @EnableAsync
 public class AsyncConfig {
 
     /**
-     * Dedicated Thread Pool for high-throughput background tasks such as
-     * physiological reading ingestion (stream and batch).
+     * Configures a dedicated Thread Pool for high-throughput background tasks,
+     * such as physiological reading ingestion (stream and batch).
      * <p>
      * Features a DiscardPolicy to drop incoming telemetry frames when the system
      * is under extreme load, rather than blocking the main application threads.
+     * It also uses {@link MdcTaskDecorator} to propagate logging context to async threads.
      * </p>
-     * @return the configured executor
+     *
+     * @return the configured {@link Executor} for telemetry operations
      */
     @Bean(name = "telemetryExecutor")
     public Executor telemetryExecutor() {

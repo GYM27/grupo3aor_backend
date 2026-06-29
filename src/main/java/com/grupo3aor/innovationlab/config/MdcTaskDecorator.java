@@ -6,9 +6,10 @@ import org.springframework.core.task.TaskDecorator;
 import java.util.Map;
 
 /**
- * I created this decorator to grab the MDC context from the main thread and pass it down 
- * to the async threads. Without this, we'd lose our user and IP info in the logs whenever 
- * we use @Async!
+ * A task decorator that propagates the Mapped Diagnostic Context (MDC) 
+ * from the main thread to asynchronous execution threads.
+ * This guarantees that contextual logging information (like user and IP) 
+ * is not lost when operations are executed via {@code @Async}.
  */
 public class MdcTaskDecorator implements TaskDecorator {
 
