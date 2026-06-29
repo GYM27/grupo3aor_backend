@@ -165,8 +165,8 @@ public class AuthController {
         }
     }
 
-        /**
-     * Completa o registo a partir de um link de convite.
+    /**
+     * Completes the registration process using a valid invitation link.
      */
     @PostMapping("/accept-invite")
     public ResponseEntity<?> acceptInvite(@Valid @RequestBody com.grupo3aor.innovationlab.dto.CompleteRegistrationRequest request, HttpServletRequest httpRequest) {
@@ -179,7 +179,7 @@ public class AuthController {
         }
     }
     /**
-     * Recupera o email associado a um convite válido para auto-preenchimento no Frontend.
+     * Retrieves the email associated with a valid invitation for auto-filling on the Frontend.
      */
     @GetMapping("/invitation-email")
     public ResponseEntity<?> getInvitationEmail(@RequestParam("token") String token) {

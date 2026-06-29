@@ -5,6 +5,10 @@ import com.grupo3aor.innovationlab.service.GlobalSettingsService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller for managing global application settings.
+ * Provides endpoints to retrieve, update, and delete the settings.
+ */
 @RestController
 @RequestMapping("/api/settings")
 public class GlobalSettingsController {

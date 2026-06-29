@@ -13,6 +13,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
+/**
+ * REST controller for managing evaluation reports.
+ * Provides endpoints for creating reports, fetching reports by simulation, and downloading reports as PDFs.
+ */
 @RestController
 @RequestMapping("/api/reports")
 @PreAuthorize("isAuthenticated()")
