@@ -16,7 +16,7 @@ import java.util.Collections;
  * connecting our security subsystem to our persistence layer. This setup allows the runtime 
  * engine to locate profile configurations and load operational privileges during login requests.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Service

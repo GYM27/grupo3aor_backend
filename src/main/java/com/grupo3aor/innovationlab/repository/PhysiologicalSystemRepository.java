@@ -13,7 +13,7 @@ import java.util.Optional;
  * I engineered this abstraction layer to manage physiological system boundaries,
  * keeping separate tracking methods for active operational workflows and logical recycling dashboards.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Repository
@@ -21,14 +21,14 @@ public interface PhysiologicalSystemRepository extends JpaRepository<Physiologic
 
     /**
      * Resolves an operational system matching a distinct unique name representation.
-     * * @param systemName Structural system text key identifier.
+     * @param systemName Structural system text key identifier.
      * @return An Optional wrapper enclosing the matching record.
      */
     Optional<PhysiologicalSystem> findBySystemName(String systemName);
 
     /**
      * Gathers all operational physiological systems, omitting soft-deleted rows.
-     * * @return Collection of active setups ready for simulation workflows.
+     * @return Collection of active setups ready for simulation workflows.
      */
     // I introduced this distinct query method to bypass soft-deleted rows during 
     // everyday simulation setup lists displayed to operational users.
@@ -36,7 +36,7 @@ public interface PhysiologicalSystemRepository extends JpaRepository<Physiologic
 
     /**
      * Gathers exclusively soft-deleted or archived physiological systems.
-     * * @return Collection of deactivated rows reserved for administrative lookup.
+     * @return Collection of deactivated rows reserved for administrative lookup.
      */
     // I built this query specifically for administrative dashboards, allowing operators 
     // to inspect archived setups or execute rollback restoration operations.

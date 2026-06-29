@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Repository interface for managing user invitations.
+ */
 @Repository
 public interface InvitationRepository extends JpaRepository<Invitation, Long> {
     Optional<Invitation> findByToken(String token);
