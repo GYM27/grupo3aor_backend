@@ -13,11 +13,11 @@ import org.springframework.stereotype.Repository;
 public interface EvaluationReportRepository extends JpaRepository<EvaluationReport, UUID> {
 
     /**
-     * Finds the evaluation report associated with a specific simulation.
+     * Finds all evaluation reports associated with a specific simulation, ordered by creation date descending.
      * Uses Spring Data's nested property traversal (simulation.id) through the @ManyToOne relation.
      *
      * @param simulationId the unique identifier of the simulation
-     * @return an Optional containing the evaluation report if found
+     * @return a List containing the evaluation reports
      */
-    Optional<EvaluationReport> findFirstBySimulation_IdOrderByCreatedAtDesc(UUID simulationId);
+    java.util.List<EvaluationReport> findBySimulation_IdOrderByCreatedAtDesc(UUID simulationId);
 }

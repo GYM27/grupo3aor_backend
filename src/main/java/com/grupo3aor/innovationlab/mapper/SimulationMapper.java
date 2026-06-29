@@ -80,6 +80,8 @@ public class SimulationMapper {
         entity.setIntervaloTemporal(dto.getIntervaloTemporal());
         entity.setRationaleText(dto.getRationaleText());
         entity.setPdfContent(dto.getPdfContent() != null ? dto.getPdfContent() : new byte[0]);
+        entity.setStartObservation(dto.getStartObservation());
+        entity.setEndObservation(dto.getEndObservation());
         return entity;
     }
 
@@ -91,6 +93,10 @@ public class SimulationMapper {
         dto.setIntervaloTemporal(entity.getIntervaloTemporal());
         dto.setRationaleText(entity.getRationaleText());
         dto.setPdfContent(entity.getPdfContent());
+        dto.setStartObservation(entity.getStartObservation());
+        dto.setEndObservation(entity.getEndObservation());
+        dto.setCreatedBy(entity.getCreatedBy());
+        dto.setCreatedAt(entity.getCreatedAt());
         return dto;
     }
 }

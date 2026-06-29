@@ -73,21 +73,21 @@ public class EvaluationReportService {
         Simulation simulation = simulationRepository.findById(dto.getSimulationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Simulation not found with ID: " + dto.getSimulationId()));
 
-        repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simulation.getId()).ifPresent(repository::delete);
-
+        // I removed the delete logic here to allow multiple reports per simulation (Relatório de Sessão)
+        
         EvaluationReport report = mapper.toEntity(dto, simulation);
 
         report.setCreatedBy(userEmail);
         report.setUpdatedBy(userEmail);
         report.setOriginIp(ipAddress);
 
-        byte[] pdfBytes = generatePdfBytes(report, simulation, dto.getCutOffSeconds());
+        byte[] pdfBytes = generatePdfBytes(report, simulation, dto.getStartObservation(), dto.getEndObservation(), dto.getIsLive());
         report.setPdfContent(pdfBytes);
 
         return mapper.toDto(repository.save(report));
     }
 
-    private byte[] generatePdfBytes(EvaluationReport report, Simulation simulation, Double cutOffSeconds) {
+    private byte[] generatePdfBytes(EvaluationReport report, Simulation simulation, Double startObservation, Double endObservation, Boolean isLive) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             Document document = new Document();
             PdfWriter.getInstance(document, baos);
@@ -107,7 +107,7 @@ public class EvaluationReportService {
             document.add(new Paragraph("CABEÇALHO FACTUAL", subtitleFont));
             document.add(new Paragraph("ID da Simulação: " + simulation.getId(), textFont));
             document.add(new Paragraph("Contexto / Paciente: " + (simulation.getScenario() != null ? simulation.getScenario().getName() : "N/A"), textFont));
-            document.add(new Paragraph("Operador: " + (simulation.getUser() != null ? simulation.getUser().getFirstName() + " " + simulation.getUser().getLastName() : "N/A"), textFont));
+            document.add(new Paragraph("Operador: " + report.getCreatedBy(), textFont));
             
             // Rules in execution
             String rulesNames = "N/A";
@@ -120,19 +120,26 @@ public class EvaluationReportService {
             String intervaloStr = report.getIntervaloTemporal() != null ? report.getIntervaloTemporal() : "N/A";
             LocalDateTime startBaseTime = simulation.getStartedAt() != null ? simulation.getStartedAt() : LocalDateTime.now();
 
-            document.add(new Paragraph("Data de Início: " + startBaseTime.format(formatter), textFont));
-            document.add(new Paragraph("Intervalo Temporal: " + intervaloStr, textFont));
+            document.add(new Paragraph("Data de Início Original: " + startBaseTime.format(formatter), textFont));
+            document.add(new Paragraph("Intervalo de Observação: " + intervaloStr, textFont));
             document.add(new Paragraph("\n"));
             
-            // If cutOffSeconds is provided, filter alerts by timestamp to only include data
-            // up to the stop point. This allows PDF generation to proceed independently of
-            // the slow bulkDelete in stopSimulation — the PDF itself does the filtering.
             List<Alert> alerts;
-            LocalDateTime finalCutOff = null;
-            if (cutOffSeconds != null && simulation.getStartedAt() != null) {
-                finalCutOff = simulation.getStartedAt().plusNanos((long)(cutOffSeconds * 1_000_000_000L)).plusSeconds(1);
-                alerts = alertRepository.findBySimulationIdUpToCutoff(simulation.getId(), finalCutOff);
-                log.info("PDF generation: filtered alerts up to {} for simulation {}", finalCutOff, simulation.getId());
+            LocalDateTime startCutOff = null;
+            LocalDateTime endCutOff = null;
+            
+            if (simulation.getStartedAt() != null) {
+                if (startObservation != null) {
+                    startCutOff = simulation.getStartedAt().plusNanos((long)(startObservation * 1_000_000_000L));
+                }
+                if (endObservation != null) {
+                    endCutOff = simulation.getStartedAt().plusNanos((long)(endObservation * 1_000_000_000L)).plusSeconds(1);
+                }
+            }
+            
+            if (endCutOff != null) {
+                alerts = alertRepository.findBySimulationIdUpToCutoff(simulation.getId(), endCutOff);
+                log.info("PDF generation: filtered alerts up to {} for simulation {}", endCutOff, simulation.getId());
             } else {
                 alerts = alertRepository.findBySimulation_Id(simulation.getId());
             }
@@ -203,13 +210,13 @@ public class EvaluationReportService {
                     Color triggerColor = "CRITICO".equalsIgnoreCase(triggerSev) ? redPastel : orangePastel;
                     String justif = clinicalFormatter.formatRationale(a);
 
-                    if (a.getTimestamp() != null && (finalCutOff == null || !a.getTimestamp().isAfter(finalCutOff))) {
+                    if (a.getTimestamp() != null && (endCutOff == null || !a.getTimestamp().isAfter(endCutOff)) && (startCutOff == null || !a.getTimestamp().isBefore(startCutOff))) {
                         events.add(new ReportEvent(a.getTimestamp(), sysName, rName, triggerSev.toUpperCase(), justif, triggerColor));
                     }
-                    if (a.getWarningAt() != null && (finalCutOff == null || !a.getWarningAt().isAfter(finalCutOff))) {
+                    if (a.getWarningAt() != null && (endCutOff == null || !a.getWarningAt().isAfter(endCutOff)) && (startCutOff == null || !a.getWarningAt().isBefore(startCutOff))) {
                         events.add(new ReportEvent(a.getWarningAt(), sysName, rName, "AVISO", "Valores iniciam aproximação à zona limite.", yellowPastel));
                     }
-                    if (a.getResolvedAt() != null && (finalCutOff == null || !a.getResolvedAt().isAfter(finalCutOff))) {
+                    if (a.getResolvedAt() != null && (endCutOff == null || !a.getResolvedAt().isAfter(endCutOff)) && (startCutOff == null || !a.getResolvedAt().isBefore(startCutOff))) {
                         events.add(new ReportEvent(a.getResolvedAt(), sysName, rName, "NORMALIZAÇÃO", "Parâmetro dentro dos limites predefinidos.", greenPastel));
                     }
                 }
@@ -218,12 +225,18 @@ public class EvaluationReportService {
 
                 for (ReportEvent ev : events) {
                     String instante = "N/A";
-                    if (ev.time != null && startBaseTime != null) {
-                        long diffSecs = Duration.between(startBaseTime, ev.time).getSeconds();
-                        diffSecs = Math.max(0, diffSecs);
-                        instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
-                    } else if (ev.time != null) {
-                        instante = ev.time.format(timeFormatter);
+                    if (Boolean.TRUE.equals(isLive)) {
+                        if (ev.time != null) {
+                            instante = ev.time.format(timeFormatter);
+                        }
+                    } else {
+                        if (ev.time != null && startBaseTime != null) {
+                            long diffSecs = Duration.between(startBaseTime, ev.time).getSeconds();
+                            diffSecs = Math.max(0, diffSecs);
+                            instante = String.format("%02d:%02d", diffSecs / 60, diffSecs % 60);
+                        } else if (ev.time != null) {
+                            instante = ev.time.format(timeFormatter);
+                        }
                     }
 
                     PdfPCell cell1 = new PdfPCell(new Phrase(instante != null ? instante : "N/A", textFont));
@@ -260,9 +273,17 @@ public class EvaluationReportService {
     }
 
     @Transactional(readOnly = true)
-    public EvaluationReport getRawReportBySimulation(UUID simulationId) {
-        return repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simulationId)
-                .orElseThrow(() -> new RuntimeException("Evaluation report missing for target simulation context"));
+    public List<EvaluationReportDTO> getAllReportsBySimulation(UUID simulationId) {
+        return repository.findBySimulation_IdOrderByCreatedAtDesc(simulationId)
+                .stream()
+                .map(mapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public EvaluationReport getRawReportById(UUID reportId) {
+        return repository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Evaluation report not found"));
     }
 
     /**
@@ -271,8 +292,7 @@ public class EvaluationReportService {
      */
     @Transactional
     public byte[] generateAndDownloadPdf(EvaluationReportDTO dto, String userEmail, String ipAddress) {
-        saveReport(dto, userEmail, ipAddress);
-        EvaluationReport report = getRawReportBySimulation(dto.getSimulationId());
-        return report.getPdfContent();
+        EvaluationReportDTO saved = saveReport(dto, userEmail, ipAddress);
+        return saved.getPdfContent();
     }
 }

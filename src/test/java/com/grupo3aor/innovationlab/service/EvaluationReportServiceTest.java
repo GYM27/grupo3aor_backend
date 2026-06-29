@@ -83,7 +83,6 @@ class EvaluationReportServiceTest {
     @DisplayName("saveReport: should save report and generate PDF")
     void saveReport_shouldSaveAndGeneratePDF() {
         when(simulationRepository.findById(simId)).thenReturn(Optional.of(mockSimulation));
-        when(repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simId)).thenReturn(Optional.empty());
         when(mapper.toEntity(any(EvaluationReportDTO.class), any(Simulation.class))).thenReturn(mockReport);
         
         PhysiologicalReading firstReading = new PhysiologicalReading();
@@ -120,22 +119,24 @@ class EvaluationReportServiceTest {
     }
 
     @Test
-    @DisplayName("getRawReportBySimulation: should return report")
-    void getRawReportBySimulation_shouldReturnReport() {
-        when(repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simId)).thenReturn(Optional.of(mockReport));
+    @DisplayName("getRawReportById: should return report")
+    void getRawReportById_shouldReturnReport() {
+        UUID reportId = mockReport.getId();
+        when(repository.findById(reportId)).thenReturn(Optional.of(mockReport));
 
-        EvaluationReport result = service.getRawReportBySimulation(simId);
+        EvaluationReport result = service.getRawReportById(reportId);
 
-        assertThat(result.getId()).isEqualTo(mockReport.getId());
+        assertThat(result.getId()).isEqualTo(reportId);
     }
 
     @Test
-    @DisplayName("getRawReportBySimulation: should throw when not found")
-    void getRawReportBySimulation_shouldThrowWhenNotFound() {
-        when(repository.findFirstBySimulation_IdOrderByCreatedAtDesc(simId)).thenReturn(Optional.empty());
+    @DisplayName("getRawReportById: should throw when not found")
+    void getRawReportById_shouldThrowWhenNotFound() {
+        UUID reportId = UUID.randomUUID();
+        when(repository.findById(reportId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getRawReportBySimulation(simId))
+        assertThatThrownBy(() -> service.getRawReportById(reportId))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Evaluation report missing");
+                .hasMessageContaining("Evaluation report not found");
     }
 }

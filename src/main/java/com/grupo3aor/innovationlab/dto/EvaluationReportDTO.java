@@ -22,9 +22,16 @@ public class EvaluationReportDTO {
 
     private byte[] pdfContent;
 
-    // Optional: when provided, the PDF will only include alerts up to this cutoff time
-    // This allows PDF generation to proceed independently of the slow bulkDelete in stopSimulation
-    private Double cutOffSeconds;
+    // Time limits for the 'Relatório de Sessão'
+    private Double startObservation;
+    private Double endObservation;
+
+    // Flag to determine if the report is for a Live stream (use Local Time) or Batch (use Duration)
+    private Boolean isLive;
+    
+    // Audit fields to return to the UI
+    private String createdBy;
+    private java.time.LocalDateTime createdAt;
 
     public EvaluationReportDTO() {
     }
@@ -50,7 +57,23 @@ public class EvaluationReportDTO {
 
     public void setPdfContent(byte[] pdfContent) { this.pdfContent = pdfContent; }
 
-    public Double getCutOffSeconds() { return cutOffSeconds; }
+    public Double getStartObservation() { return startObservation; }
 
-    public void setCutOffSeconds(Double cutOffSeconds) { this.cutOffSeconds = cutOffSeconds; }
+    public void setStartObservation(Double startObservation) { this.startObservation = startObservation; }
+
+    public Double getEndObservation() { return endObservation; }
+
+    public void setEndObservation(Double endObservation) { this.endObservation = endObservation; }
+
+    public Boolean getIsLive() { return isLive; }
+
+    public void setIsLive(Boolean isLive) { this.isLive = isLive; }
+    
+    public String getCreatedBy() { return createdBy; }
+
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    
+    public java.time.LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
