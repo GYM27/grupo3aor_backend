@@ -24,7 +24,8 @@ public interface PhysiologicalReadingRepository extends JpaRepository<Physiologi
      * @param simulationId the unique identification of the simulation
      * @return a list of physiological readings
      */
-    List<PhysiologicalReading> findBySimulation_Id(UUID simulationId);
+    @Query("SELECT r FROM PhysiologicalReading r JOIN FETCH r.simulation WHERE r.simulation.id = :simulationId ORDER BY r.timestamp ASC")
+    List<PhysiologicalReading> findBySimulation_Id(@Param("simulationId") UUID simulationId);
 
     /**
      * Finds all readings for a simulation ordered chronologically.

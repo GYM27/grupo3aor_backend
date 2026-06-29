@@ -44,6 +44,12 @@ public class EvaluationReport extends Auditable {
     @Column(name = "intervalo_temporal", nullable = false)
     private String intervaloTemporal;
 
+    @Column(name = "start_observation")
+    private Double startObservation;
+
+    @Column(name = "end_observation")
+    private Double endObservation;
+
     @Lob
     @Column(name = "rationale_text", nullable = false, columnDefinition = "TEXT")
     private String rationaleText;

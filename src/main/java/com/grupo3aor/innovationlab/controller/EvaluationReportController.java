@@ -32,12 +32,17 @@ public class EvaluationReportController {
         return ResponseEntity.ok(service.saveReport(dto, authentication.getName(), request.getRemoteAddr()));
     }
 
-    @GetMapping("/simulation/{simulationId}/download")
-    public ResponseEntity<byte[]> downloadPdf(@PathVariable UUID simulationId) {
-        EvaluationReport report = service.getRawReportBySimulation(simulationId);
+    @GetMapping("/simulation/{simulationId}")
+    public ResponseEntity<java.util.List<EvaluationReportDTO>> getReportsBySimulation(@PathVariable UUID simulationId) {
+        return ResponseEntity.ok(service.getAllReportsBySimulation(simulationId));
+    }
+
+    @GetMapping("/download/{reportId}")
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable UUID reportId) {
+        EvaluationReport report = service.getRawReportById(reportId);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report-" + simulationId + ".pdf\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report-" + reportId + ".pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(report.getPdfContent());
     }

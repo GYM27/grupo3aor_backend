@@ -143,4 +143,27 @@ public class PhysiologicalReadingController {
     public ResponseEntity<List<PhysiologicalReadingDTO>> getBySimulation(@PathVariable UUID simulationId) {
         return ResponseEntity.ok(service.getReadingsBySimulation(simulationId));
     }
+
+    /**
+     * Ingests physiological readings coming from a standard JSON array in a single batch request.
+     * This fulfills the batch submission requirement (5.4.1) using an explicit REST structure.
+     *
+     * @param dtos           The list of reading payloads
+     * @param authentication The security context
+     * @param request        The HTTP request
+     * @return A 202 Accepted response
+     */
+    @PostMapping(value = "/batch", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<java.util.Map<String, String>> postReadingBatch(
+            @Valid @RequestBody List<PhysiologicalReadingDTO> dtos,
+            Authentication authentication,
+            HttpServletRequest request) {
+        
+        String userEmail = authentication.getName();
+        String ipAddress = request.getRemoteAddr();
+
+        service.createReadingBatchAsync(dtos, userEmail, ipAddress);
+        
+        return ResponseEntity.accepted().body(java.util.Map.of("message", "JSON Batch upload accepted and processed successfully."));
+    }
 }
