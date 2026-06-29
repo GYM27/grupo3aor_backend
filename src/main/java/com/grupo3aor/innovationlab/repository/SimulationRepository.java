@@ -37,4 +37,17 @@ public interface SimulationRepository extends JpaRepository<Simulation, UUID> {
     @org.springframework.data.jpa.repository.Query("SELECT s FROM Simulation s JOIN FETCH s.scenario WHERE s.status IN :statuses")
     List<Simulation> findAllByStatusIn(@org.springframework.data.repository.query.Param("statuses") Collection<SimulationStatus> statuses);
 
+    /**
+     * Busca todas as simulações associadas a um utilizador específico (dono da simulação)
+     * OU simulações onde este utilizador gerou um relatório (participante/observador).
+     */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT DISTINCT s FROM Simulation s " +
+        "LEFT JOIN EvaluationReport r ON r.simulation = s " +
+        "WHERE s.user = :user OR r.createdBy = :email"
+    )
+    List<Simulation> findByUserOrReportCreator(
+        @org.springframework.data.repository.query.Param("user") com.grupo3aor.innovationlab.domain.entity.User user, 
+        @org.springframework.data.repository.query.Param("email") String email
+    );
 }

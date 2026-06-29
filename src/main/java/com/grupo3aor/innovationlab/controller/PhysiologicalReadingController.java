@@ -63,6 +63,11 @@ public class PhysiologicalReadingController {
             @Valid @RequestBody PhysiologicalReadingDTO dto,
             Authentication authentication,
             HttpServletRequest request) {
+            
+        if (!service.isSimulationActive(dto.getSimulationId())) {
+            return ResponseEntity.badRequest().body("Simulation is not active.");
+        }
+        
         service.createReadingAsync(dto, authentication.getName(), request.getRemoteAddr());
         return ResponseEntity.accepted().build();
     }
@@ -154,10 +159,18 @@ public class PhysiologicalReadingController {
      * @return A 202 Accepted response
      */
     @PostMapping(value = "/batch", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<java.util.Map<String, String>> postReadingBatch(
+    public ResponseEntity<?> postReadingBatch(
             @Valid @RequestBody List<PhysiologicalReadingDTO> dtos,
             Authentication authentication,
             HttpServletRequest request) {
+        
+        if (dtos == null || dtos.isEmpty()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Empty batch."));
+        }
+        
+        if (!service.isSimulationActive(dtos.get(0).getSimulationId())) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Simulation is not active."));
+        }
         
         String userEmail = authentication.getName();
         String ipAddress = request.getRemoteAddr();

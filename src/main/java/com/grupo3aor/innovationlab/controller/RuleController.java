@@ -34,7 +34,7 @@ public class RuleController {
      */
     @PostMapping
     @AuditableAction(action = "CREATE_RULE")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<?> createRule(@Valid @RequestBody RuleRequest request, Authentication authentication) {
         String operatorEmail = authentication.getName();
         RuleResponse response = ruleService.createRule(request, operatorEmail);
@@ -46,7 +46,7 @@ public class RuleController {
      */
     @GetMapping
     @AuditableAction(action = "LIST_RULES")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<org.springframework.data.domain.Page<RuleResponse>> getAllRules(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long systemId,
@@ -70,7 +70,7 @@ public class RuleController {
      */
     @DeleteMapping("/{id}")
     @AuditableAction(action = "DELETE_RULE")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<?> deleteRule(@PathVariable UUID id) {
         ruleService.deleteRule(id);
         return ResponseEntity.ok().build();
@@ -81,7 +81,7 @@ public class RuleController {
      */
     @PutMapping("/{id}/deactivate")
     @AuditableAction(action = "DEACTIVATE_RULE")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<?> deactivateRule(@PathVariable UUID id) {
         ruleService.deactivateRule(id);
         return ResponseEntity.ok().build();
@@ -92,7 +92,7 @@ public class RuleController {
      */
     @PutMapping("/{id}/activate")
     @AuditableAction(action = "ACTIVATE_RULE")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<?> activateRule(@PathVariable UUID id) {
         ruleService.activateRule(id);
         return ResponseEntity.ok().build();
@@ -103,7 +103,7 @@ public class RuleController {
      */
     @PutMapping("/{id}")
     @AuditableAction(action = "UPDATE_RULE")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<?> updateRule(@PathVariable UUID id, @Valid @RequestBody RuleRequest request, Authentication authentication) {
         String operatorEmail = authentication.getName();
         RuleResponse response = ruleService.updateRule(id, request, operatorEmail);

@@ -97,6 +97,11 @@ public class SimulationMapper {
         dto.setEndObservation(entity.getEndObservation());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setCreatedAt(entity.getCreatedAt());
+        // Extraímos também o status de isLive se pudermos inferir ou se tivermos de o guardar.
+        // Neste caso, tentamos deduzir se start/end são null para Batch vs Live, 
+        // ou se a simulação tem payload. Mas como EvaluationReport não guarda isLive na BD, 
+        // vamos deixar a null ou inferir.
+        // Para simplificar, deixamos que o frontend determine.
         return dto;
     }
 }
