@@ -16,7 +16,6 @@ public class GlobalSettingsController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
     public GlobalSettingsDTO getSettings() {
         return service.getSettings();
     }
