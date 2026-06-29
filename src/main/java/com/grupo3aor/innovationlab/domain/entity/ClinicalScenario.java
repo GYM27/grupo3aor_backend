@@ -16,7 +16,7 @@ import org.hibernate.annotations.SQLRestriction;
  * I refactored it to extend {@link Auditable}, eliminating duplicated audit columns
  * and guaranteeing structural consistency across the entire domain model.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Entity
@@ -65,7 +65,7 @@ public class ClinicalScenario extends Auditable {
     private boolean active = true;
 
     /**
-     * Array de leituras fisiológicas em formato JSON para reprodução pelo motor.
+     * Array of physiological readings in JSON format for engine playback.
      */
     @Lob
     @Column(columnDefinition = "TEXT")

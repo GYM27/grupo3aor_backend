@@ -19,7 +19,7 @@ import org.hibernate.annotations.SQLRestriction;
  * I refactored it to extend {@link Auditable}, eliminating duplicated audit
  * columns and ensuring a single source of truth for timestamp management.
  * </p>
- * * @author Group 3 - Acertar o Rumo 12th Edition
+ * @author Group 3 - Acertar o Rumo 12th Edition
  * @version 1.0
  */
 @Entity
@@ -130,7 +130,7 @@ public class User extends Auditable {
 
     /**
      * Comparative evaluation relying solely on object primary identifiers.
-     * * @param o Object compared against.
+     * @param o Object compared against.
      * @return true if identities are identical; false otherwise.
      */
     @Override
@@ -143,7 +143,7 @@ public class User extends Auditable {
 
     /**
      * Returns a stable object hashcode.
-     * * @return Deterministic integer matching the persistent class type.
+     * @return Deterministic integer matching the persistent class type.
      */
     @Override
     public int hashCode() {

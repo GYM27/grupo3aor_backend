@@ -7,6 +7,9 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+/**
+ * Entity representing an invitation sent to a user for registration.
+ */
 @Entity
 @Table(name = "invitations")
 @Getter
