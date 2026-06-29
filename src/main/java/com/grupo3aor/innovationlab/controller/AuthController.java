@@ -178,5 +178,17 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+    /**
+     * Recupera o email associado a um convite válido para auto-preenchimento no Frontend.
+     */
+    @GetMapping("/invitation-email")
+    public ResponseEntity<?> getInvitationEmail(@RequestParam("token") String token) {
+        try {
+            String email = authService.getInvitationEmailByToken(token);
+            return ResponseEntity.ok(Map.of("email", email));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 
 }

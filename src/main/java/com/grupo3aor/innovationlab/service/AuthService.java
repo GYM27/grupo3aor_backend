@@ -372,7 +372,22 @@ public class AuthService {
         log.info("[AUDIT] Action: INVITATION_DELETED | Target Email: {}", email);
     }
 
-        @Transactional
+    /**
+     * Valida um token de convite e retorna o email associado.
+     */
+    @Transactional(readOnly = true)
+    public String getInvitationEmailByToken(String token) {
+        Invitation invitation = invitationRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou não encontrado."));
+        
+        if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Este convite já expirou.");
+        }
+        
+        return invitation.getEmail();
+    }
+
+    @Transactional
     public void completeRegistrationFromInvite(com.grupo3aor.innovationlab.dto.CompleteRegistrationRequest request, String ipAddress) {
         com.grupo3aor.innovationlab.domain.entity.Invitation invitation = invitationRepository.findByToken(request.getToken())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation token."));
