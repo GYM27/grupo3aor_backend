@@ -24,15 +24,30 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class Simulation extends Auditable {
+public class Simulation extends Auditable implements org.springframework.data.domain.Persistable<UUID> {
 
     // =========================================================
     // MY PRIMARY KEY
     // Using UUID here to ensure uniqueness across distributed systems.
     // =========================================================
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @Column(name = "id", updatable = false, nullable = false)
+    @Builder.Default
+    private UUID id = UUID.randomUUID();
+
+    @Transient
+    private boolean isNewRecord = true;
+
+    @Override
+    public boolean isNew() {
+        return this.isNewRecord;
+    }
+
+    @PostPersist
+    @PostLoad
+    protected void markNotNew() {
+        this.isNewRecord = false;
+    }
 
     // =========================================================
     // THE SCENARIO REFERENCE

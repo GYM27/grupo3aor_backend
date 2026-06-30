@@ -5,6 +5,7 @@ import com.grupo3aor.innovationlab.dto.GlobalSettingsDTO;
 import com.grupo3aor.innovationlab.repository.GlobalSettingsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Service for managing global application settings.
@@ -14,6 +15,16 @@ public class GlobalSettingsService {
 
     @Autowired
     private GlobalSettingsRepository repository;
+
+    private final AtomicBoolean isDbFailed = new AtomicBoolean(false);
+
+    public void setDbFailed(boolean status) {
+        this.isDbFailed.set(status);
+    }
+
+    public boolean isDbFailed() {
+        return this.isDbFailed.get();
+    }
 
     public GlobalSettingsDTO getSettings() {
         GlobalSettings dataRepository = repository.getSettings();
@@ -41,6 +52,9 @@ public class GlobalSettingsService {
         if (settingsDto.getIsHumanBodyEnabled() != null) {
             dataRepository.setIsHumanBodyEnabled(settingsDto.getIsHumanBodyEnabled());
         }
+        if (settingsDto.getIsDbFailed() != null) {
+            setDbFailed(settingsDto.getIsDbFailed());
+        }
         
         dataRepository = repository.save(dataRepository);
         return mapToDTO(dataRepository);
@@ -57,6 +71,7 @@ public class GlobalSettingsService {
         return GlobalSettingsDTO.builder()
                 .sessionTimeoutMinutes(settings.getSessionTimeoutMinutes())
                 .isHumanBodyEnabled(settings.getIsHumanBodyEnabled())
+                .isDbFailed(this.isDbFailed.get())
                 .build();
     }
 }

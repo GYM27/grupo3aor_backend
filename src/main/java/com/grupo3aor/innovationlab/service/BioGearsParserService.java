@@ -23,9 +23,11 @@ import java.util.UUID;
 public class BioGearsParserService {
 
     private final SimulationRepository simulationRepository;
+    private final GlobalSettingsService globalSettingsService;
 
-    public BioGearsParserService(SimulationRepository simulationRepository) {
+    public BioGearsParserService(SimulationRepository simulationRepository, GlobalSettingsService globalSettingsService) {
         this.simulationRepository = simulationRepository;
+        this.globalSettingsService = globalSettingsService;
     }
 
     /**
@@ -37,6 +39,12 @@ public class BioGearsParserService {
      * @throws Exception if parsing fails
      */
     public List<PhysiologicalReadingDTO> parseCsv(MultipartFile file, UUID simulationId) throws Exception {
+        if (globalSettingsService.isDbFailed()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                "Sistema em Modo Degradado. Uploads em lote temporariamente indisponíveis");
+        }
+        
         List<PhysiologicalReadingDTO> readings = new ArrayList<>();
         
         try (Reader reader = new InputStreamReader(file.getInputStream());

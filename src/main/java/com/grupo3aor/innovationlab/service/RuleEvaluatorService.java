@@ -16,7 +16,11 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.extern.slf4j.Slf4j;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.MeterRegistry;
+
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -35,12 +39,21 @@ public class RuleEvaluatorService {
     private final SimpMessagingTemplate messagingTemplate;
     private final MeterRegistry meterRegistry;
     
+    // Adding these dependencies for degraded mode support
+    private final DataPersistenceComponent dataPersistenceComponent;
+    private final GlobalSettingsService globalSettingsService;
+
+    // Adding this cache to serve as fallback when the database fails
+    private List<Rule> cachedRules = new ArrayList<>();
+    
     // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
     private final YAMLMapper yamlMapper = new YAMLMapper();
 
     private static class TrackerState {
         LocalDateTime firstBreach;
         LocalDateTime firstRecovery;
+        // Adding this line to keep track of the active alert purely in memory
+        Alert activeAlertMemory; 
     }
 
     // Thread-safe map to avoid memory leaks and concurrency issues. Key: Simulation ID -> (Rule ID -> TrackerState)
@@ -61,111 +74,147 @@ public class RuleEvaluatorService {
 
     @Transactional
     public void evaluateReading(PhysiologicalReading reading) throws Exception {
-        evaluateReadingsBatch(java.util.List.of(reading));
+        evaluateReadingsBatch(List.of(reading));
+    }
+
+    private List<Rule> getActiveRulesSafely() {
+        try {
+            if (globalSettingsService.isDbFailed()) {
+                return cachedRules;
+            }
+            List<Rule> rules = ruleRepository.findByActiveTrue();
+            cachedRules = rules;
+            return rules;
+        } catch (Exception e) {
+            log.warn("[DEGRADED MODE] Failed to read rules from the database. Activating degraded mode and using the memory cache.");
+            globalSettingsService.setDbFailed(true);
+            return cachedRules;
+        }
     }
 
     @Transactional
     @Timed(value = "vitalsim.rule.evaluation.time", description = "Time taken to evaluate clinical rules")
-    public void evaluateReadingsBatch(java.util.List<PhysiologicalReading> readings) {
+    public void evaluateReadingsBatch(List<PhysiologicalReading> readings) {
         if (readings == null || readings.isEmpty()) return;
-        
-        java.util.List<Rule> activeRules = ruleRepository.findByActiveTrue();
+
+        // 1. Fetch active rules safely, falling back to RAM if the database is down
+        List<Rule> activeRules = getActiveRulesSafely();
         if (activeRules.isEmpty()) return;
 
         Simulation currentSim = readings.get(0).getSimulation();
         UUID simId = currentSim.getId();
 
-        // In-memory cache to track which rules have already triggered an active alert for the simulation
-        java.util.Set<UUID> activeAlertsCache = new java.util.HashSet<>();
-        
-        // Since we check the DB only once per batch, this makes 10,000 checks drop to 1.
-        for (Rule rule : activeRules) {
-            boolean exists = alertRepository.existsBySimulationAndRuleAndStatus(currentSim, rule, AlertStatus.ATIVO);
-            if (exists) {
-                activeAlertsCache.add(rule.getId());
-            }
-        }
-
         for (PhysiologicalReading reading : readings) {
             for (Rule rule : activeRules) {
                 try {
-                    // Check if this rule actually applies to this specific reading handle
                     if (!rule.isApplicableTo(reading.getHandle())) continue;
 
                     Double val = reading.getValue() != null ? reading.getValue().doubleValue() : null;
                     boolean isTriggered = rule.isTriggeredBy(reading.getHandle(), val);
                     boolean isResolved = rule.isResolvedBy(reading.getHandle(), val);
-                    boolean isAlerting = activeAlertsCache.contains(rule.getId());
-
+                    
                     TrackerState tracker = getTracker(simId, rule.getId());
+                    
+                    // 2. Checking if the alert is active using strictly the RAM tracker
+                    boolean isAlerting = (tracker.activeAlertMemory != null);
 
                     if (isTriggered) {
-                        // Reset recovery since we are back in critical zone
                         tracker.firstRecovery = null;
 
                         if (!isAlerting) {
                             if (tracker.firstBreach == null) {
                                 tracker.firstBreach = reading.getTimestamp();
                             }
+
                             long diffSeconds = ChronoUnit.SECONDS.between(tracker.firstBreach, reading.getTimestamp());
                             int requiredSeconds = rule.getActivationPersistence() != null ? rule.getActivationPersistence() : 0;
 
                             if (diffSeconds >= requiredSeconds) {
-                                // Trigger Alert
                                 log.info("Rule triggered: {} (ID: {}) for Simulation: {}", rule.getName(), rule.getId(), currentSim.getId());
+
                                 Alert newAlert = Alert.builder()
+                                    .id(UUID.randomUUID()) // Generating ID early so it exists in memory
                                     .simulation(currentSim)
                                     .rule(rule)
                                     .status(AlertStatus.ATIVO)
                                     .valueAtTrigger(val)
                                     .timestamp(reading.getTimestamp())
                                     .build();
-                                
-                                newAlert = alertRepository.save(newAlert);
+
+                                // 3. Save with Circuit Breaker protection
+                                try {
+                                    if (globalSettingsService.isDbFailed()) {
+                                        dataPersistenceComponent.queueAlert(newAlert);
+                                    } else {
+                                        newAlert = alertRepository.save(newAlert);
+                                    }
+                                } catch (Exception e) {
+                                    log.warn("[DEGRADED MODE] Failed to save the new alert. Queuing it in memory instead.");
+                                    globalSettingsService.setDbFailed(true);
+                                    dataPersistenceComponent.queueAlert(newAlert);
+                                }
+
+                                // 4. Save the alert in the Tracker's RAM
+                                tracker.activeAlertMemory = newAlert;
+                                tracker.firstBreach = null;
+
                                 broadcastAlert(newAlert, rule.getSeverity().name());
                                 meterRegistry.counter("vitalsim.alerts.triggered").increment();
-                                
-                                activeAlertsCache.add(rule.getId());
-                                tracker.firstBreach = null; // Reset breach tracker
                             }
                         }
                     } else if (isResolved && isAlerting) {
-                        // We are alerting and the reading is now in the safe zone
                         tracker.firstBreach = null;
 
                         if (tracker.firstRecovery == null) {
                             tracker.firstRecovery = reading.getTimestamp();
                             
-                            // It just crossed the threshold, send WARNING (Convalescence)
-                            Alert activeAlert = alertRepository.findFirstBySimulationAndRuleAndStatusOrderByTimestampDesc(currentSim, rule, AlertStatus.ATIVO);
-                            if (activeAlert != null) {
-                                activeAlert.setWarningAt(reading.getTimestamp());
-                                alertRepository.save(activeAlert);
-                                broadcastAlert(activeAlert, "WARNING");
+                            // Warning phase (Convalescence)
+                            Alert activeAlert = tracker.activeAlertMemory;
+                            activeAlert.setWarningAt(reading.getTimestamp());
+                            
+                            try {
+                                if (globalSettingsService.isDbFailed()) {
+                                    dataPersistenceComponent.queueAlert(activeAlert);
+                                } else {
+                                    alertRepository.save(activeAlert);
+                                }
+                            } catch (Exception e) {
+                                globalSettingsService.setDbFailed(true);
+                                dataPersistenceComponent.queueAlert(activeAlert);
                             }
+                            
+                            broadcastAlert(activeAlert, "WARNING");
                         }
 
                         long diffSeconds = ChronoUnit.SECONDS.between(tracker.firstRecovery, reading.getTimestamp());
                         int requiredSeconds = rule.getResolutionPersistence() != null ? rule.getResolutionPersistence() : 0;
 
                         if (diffSeconds >= requiredSeconds) {
-                            // Stabilized!
                             log.info("Alert resolved for Rule: {} (ID: {}) for Simulation: {}", rule.getName(), rule.getId(), currentSim.getId());
-                            Alert activeAlert = alertRepository.findFirstBySimulationAndRuleAndStatusOrderByTimestampDesc(currentSim, rule, AlertStatus.ATIVO);
-                            if (activeAlert != null) {
-                                activeAlert.setStatus(AlertStatus.RESOLVIDO);
-                                activeAlert.setResolvedAt(reading.getTimestamp());
-                                alertRepository.save(activeAlert);
-                                broadcastAlert(activeAlert, "NORMAL");
-                                meterRegistry.counter("vitalsim.alerts.resolved").increment();
-                            }
                             
-                            activeAlertsCache.remove(rule.getId());
+                            Alert activeAlert = tracker.activeAlertMemory;
+                            activeAlert.setStatus(AlertStatus.RESOLVIDO);
+                            activeAlert.setResolvedAt(reading.getTimestamp());
+                            
+                            try {
+                                if (globalSettingsService.isDbFailed()) {
+                                    dataPersistenceComponent.queueAlert(activeAlert);
+                                } else {
+                                    alertRepository.save(activeAlert);
+                                }
+                            } catch (Exception e) {
+                                globalSettingsService.setDbFailed(true);
+                                dataPersistenceComponent.queueAlert(activeAlert);
+                            }
+
+                            broadcastAlert(activeAlert, "NORMAL");
+                            meterRegistry.counter("vitalsim.alerts.resolved").increment();
+
+                            // 5. Clear the RAM tracker
+                            tracker.activeAlertMemory = null;
                             tracker.firstRecovery = null;
                         }
                     } else {
-                        // In between thresholds (Hysteresis band) or neither alerting nor triggered.
-                        // Reset both trackers to ensure strict persistence requirement.
                         tracker.firstBreach = null;
                         tracker.firstRecovery = null;
                     }
@@ -191,7 +240,7 @@ public class RuleEvaluatorService {
             eventTimestamp = alert.getWarningAt().toString();
         }
 
-        java.util.Map<String, Object> alertPayload = java.util.Map.of(
+        Map<String, Object> alertPayload = Map.of(
             "alertId",        alert.getId() != null ? alert.getId().toString() : "",
             "ruleId",         alert.getRule() != null ? alert.getRule().getId().toString() : "",
             "simulationId",   alert.getSimulation().getId().toString(),

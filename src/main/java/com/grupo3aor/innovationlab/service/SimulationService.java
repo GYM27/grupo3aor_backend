@@ -42,12 +42,19 @@ public class SimulationService {
     private final RuleEvaluatorService ruleEvaluatorService;
     private final PhysiologicalReadingRepository readingRepository;
     private final AlertRepository alertRepository;
+    private final GlobalSettingsService globalSettingsService;
 
     /**
      * Let's start a new simulation securely from the user's request.
      */
     @Transactional
     public SimulationResponse startSimulation(SimulationRequest request, String userEmail) {
+        if (globalSettingsService.isDbFailed()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, 
+                    "System in Degraded Mode. Cannot start new simulations.");
+        }
+
         User starter = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
 

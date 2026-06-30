@@ -35,7 +35,10 @@ class BioGearsParserServiceTest {
         mockSim.setStartedAt(LocalDateTime.now());
         when(mockRepo.findById(any())).thenReturn(Optional.of(mockSim));
         
-        parserService = new BioGearsParserService(mockRepo);
+        GlobalSettingsService mockSettings = Mockito.mock(GlobalSettingsService.class);
+        when(mockSettings.isDbFailed()).thenReturn(false);
+        
+        parserService = new BioGearsParserService(mockRepo, mockSettings);
     }
 
     @Test

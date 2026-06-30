@@ -15,4 +15,5 @@ import lombok.NoArgsConstructor;
 public class GlobalSettingsDTO {
     private Integer sessionTimeoutMinutes;
     private Boolean isHumanBodyEnabled;
+    private Boolean isDbFailed;
 }
