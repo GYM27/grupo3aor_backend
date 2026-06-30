@@ -56,11 +56,12 @@ public class SimulationController {
 
     /**
      * Fetches all currently active simulations (INICIADA or EM_CURSO) across the system.
+     * Applies RBAC filtering: Standard USERs only see their own active simulations.
      */
     @GetMapping("/active")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<SimulationResponse>> getActiveSimulations() {
-        return ResponseEntity.ok(simulationService.getActiveSimulations());
+    public ResponseEntity<List<SimulationResponse>> getActiveSimulations(Authentication authentication) {
+        return ResponseEntity.ok(simulationService.getActiveSimulations(authentication.getName()));
     }
 
     /**

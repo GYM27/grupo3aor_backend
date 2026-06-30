@@ -126,7 +126,13 @@ public class SimulationService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
 
-        List<Simulation> simulations = simulationRepository.findByUserOrReportCreator(user, userEmail);
+        List<Simulation> simulations;
+        // RBAC: Standard USERs only see their own history, ADMIN/MANAGER see everything
+        if (user.getPerfil() == com.grupo3aor.innovationlab.domain.enums.PerfilEnum.USER) {
+            simulations = simulationRepository.findByUserOrReportCreator(user, userEmail);
+        } else {
+            simulations = simulationRepository.findAll();
+        }
 
         return simulations.stream()
                 .map(this::mapToResponse)
@@ -134,11 +140,22 @@ public class SimulationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimulationResponse> getActiveSimulations() {
-        return simulationRepository.findAllByStatusIn(List.of(
+    public List<SimulationResponse> getActiveSimulations(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
+
+        List<Simulation> activeSims = simulationRepository.findAllByStatusIn(List.of(
                 SimulationStatus.INICIADA, 
-                SimulationStatus.EM_CURSO))
-                .stream()
+                SimulationStatus.EM_CURSO));
+
+        // RBAC: Standard USERs only see their own active simulations
+        if (user.getPerfil() == com.grupo3aor.innovationlab.domain.enums.PerfilEnum.USER) {
+            activeSims = activeSims.stream()
+                    .filter(sim -> sim.getUser().equals(user))
+                    .collect(Collectors.toList());
+        }
+
+        return activeSims.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
