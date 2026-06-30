@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -37,7 +39,7 @@ public class EvaluationReportController {
     }
 
     @GetMapping("/simulation/{simulationId}")
-    public ResponseEntity<java.util.List<EvaluationReportDTO>> getReportsBySimulation(@PathVariable UUID simulationId) {
+    public ResponseEntity<List<EvaluationReportDTO>> getReportsBySimulation(@PathVariable UUID simulationId) {
         return ResponseEntity.ok(service.getAllReportsBySimulation(simulationId));
     }
 
