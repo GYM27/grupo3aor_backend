@@ -24,6 +24,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.ArrayList;
 
 /**
  * Here is where we manage the core simulation lifecycle.
@@ -117,13 +119,7 @@ public class SimulationService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database!"));
 
-        List<Simulation> simulations;
-        if (user.getPerfil() == com.grupo3aor.innovationlab.domain.enums.PerfilEnum.MANAGER || 
-            user.getPerfil() == com.grupo3aor.innovationlab.domain.enums.PerfilEnum.ADMIN) {
-            simulations = simulationRepository.findAll();
-        } else {
-            simulations = simulationRepository.findByUserOrReportCreator(user, userEmail);
-        }
+        List<Simulation> simulations = simulationRepository.findByUserOrReportCreator(user, userEmail);
 
         return simulations.stream()
                 .map(this::mapToResponse)
@@ -236,7 +232,7 @@ public class SimulationService {
                 .endedAt(sim.getEndedAt())
                 .status(sim.getStatus())
                 .simulatedDurationSeconds(sim.getSimulatedDurationSeconds())
-                .events(java.util.Collections.emptyList())
+                .events(Collections.emptyList())
                 .build();
     }
 
@@ -249,7 +245,7 @@ public class SimulationService {
         
         List<AlertEventDTO> events = alertRepository.findBySimulation_Id(sim.getId()).stream()
                 .flatMap(alert -> {
-                    List<AlertEventDTO> subEvents = new java.util.ArrayList<>();
+                    List<AlertEventDTO> subEvents = new ArrayList<>();
                     String ruleName = (alert.getRule() != null && alert.getRule().getName() != null && !alert.getRule().getName().isEmpty())
                             ? alert.getRule().getName()
                             : "Unnamed";
