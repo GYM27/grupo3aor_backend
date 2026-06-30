@@ -129,8 +129,8 @@ public class PhysiologicalReadingService {
             log.error("Failed to evaluate rules for batch: {}", e.getMessage(), e);
         }
 
-        // 4. Se a batch for pequena (Live Stream micro-batch), guardamos e emitimos por WebSocket.
-        // Se for gigante (CSV 52k linhas), saltamos para evitar bloquear a Base de Dados e a RAM.
+        // 4. If the batch is small (Live Stream micro-batch), save and broadcast via WebSocket.
+        // If it's huge (CSV 52k lines), skip to avoid blocking the Database and RAM.
         if (entitiesToSave.size() < 1000) {
             List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
             for (PhysiologicalReading savedReading : savedReadings) {

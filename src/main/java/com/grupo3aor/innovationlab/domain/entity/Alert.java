@@ -27,12 +27,26 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class Alert extends Auditable {
+public class Alert extends Auditable implements org.springframework.data.domain.Persistable<UUID> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @Builder.Default
+    private UUID id = UUID.randomUUID();
+
+    @Transient
+    private boolean isNewRecord = true;
+
+    @Override
+    public boolean isNew() {
+        return this.isNewRecord;
+    }
+
+    @PostPersist
+    @PostLoad
+    protected void markNotNew() {
+        this.isNewRecord = false;
+    }
 
     // I replaced the raw UUID field with a proper @ManyToOne relation to the Simulation entity.
     // This creates a real foreign key in the database, preventing orphan alerts from being created
