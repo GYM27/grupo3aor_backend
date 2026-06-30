@@ -36,6 +36,8 @@ public class PhysiologicalReadingService {
     private final RuleEvaluatorService ruleEvaluatorService;
     private final SimpMessagingTemplate messagingTemplate;
     private final MeterRegistry meterRegistry;
+    private final GlobalSettingsService globalSettingsService;
+    private final DataPersistenceComponent dataPersistenceComponent;
 
     @Transactional
     public PhysiologicalReadingDTO createReading(PhysiologicalReadingDTO dto, String userEmail, String ipAddress) {
@@ -132,7 +134,18 @@ public class PhysiologicalReadingService {
         // 4. If the batch is small (Live Stream micro-batch), save and broadcast via WebSocket.
         // If it's huge (CSV 52k lines), skip to avoid blocking the Database and RAM.
         if (entitiesToSave.size() < 1000) {
-            List<PhysiologicalReading> savedReadings = repository.saveAll(entitiesToSave);
+            List<PhysiologicalReading> savedReadings = new ArrayList<>();
+            
+            if (globalSettingsService.isDbFailed()) {
+                // Modo Degradado: Guardar na RAM para não crashar o HTTP POST (Erro 500) do script IoT
+                for (PhysiologicalReading pr : entitiesToSave) {
+                    dataPersistenceComponent.queueReading(pr);
+                    savedReadings.add(pr);
+                }
+            } else {
+                savedReadings = repository.saveAll(entitiesToSave);
+            }
+
             for (PhysiologicalReading savedReading : savedReadings) {
                 PhysiologicalReadingDTO savedDto = mapper.toDto(savedReading);
                 messagingTemplate.convertAndSend("/topic/simulations/" + savedDto.getSimulationId() + "/readings", savedDto);

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import jakarta.annotation.PostConstruct;
 
 /**
  * Service responsible for dynamically evaluating physiological readings against the registered
@@ -48,6 +49,22 @@ public class RuleEvaluatorService {
     
     // Using YAMLMapper instead of ObjectMapper to parse the "miniDSL YAML"
     private final YAMLMapper yamlMapper = new YAMLMapper();
+
+    @PostConstruct
+    public void initCache() {
+        try {
+            cachedRules = ruleRepository.findByActiveTrue();
+            // Force Lazy Initialization of the system BEFORE the database fails!
+            for (Rule rule : cachedRules) {
+                if (rule.getSystem() != null) {
+                    rule.getSystem().getSystemName();
+                }
+            }
+            log.info("[DEGRADED MODE] Initialized RAM rule cache with {} rules on startup.", cachedRules.size());
+        } catch (Exception e) {
+            log.error("Failed to initialize rule cache on startup", e);
+        }
+    }
 
     private static class TrackerState {
         LocalDateTime firstBreach;
@@ -83,6 +100,12 @@ public class RuleEvaluatorService {
                 return cachedRules;
             }
             List<Rule> rules = ruleRepository.findByActiveTrue();
+            // Force Lazy Initialization while the DB is still alive!
+            for (Rule rule : rules) {
+                if (rule.getSystem() != null) {
+                    rule.getSystem().getSystemName();
+                }
+            }
             cachedRules = rules;
             return rules;
         } catch (Exception e) {

@@ -155,7 +155,7 @@ public class EvaluationReportService {
             } else {
                 PdfPTable alertTable = new PdfPTable(5);
                 alertTable.setWidthPercentage(100);
-                alertTable.setWidths(new float[]{0.6f, 1.5f, 1.5f, 1.2f, 3f});
+                alertTable.setWidths(new float[]{0.8f, 1.5f, 1.5f, 1.0f, 3f});
                 
                 alertTable.addCell(new Phrase("Instante", boldFont));
                 alertTable.addCell(new Phrase("Sistema", boldFont));
